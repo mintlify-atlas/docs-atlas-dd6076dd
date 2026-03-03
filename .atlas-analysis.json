@@ -1,0 +1,100 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Inspatial Cloud Client",
+  "projectDescription": "TypeScript client library for interacting with Inspatial Cloud's REST API and real-time InLive interface",
+  "theme": "palm",
+  "primaryColor": "#2563EB",
+  "lightColor": "#60A5FA",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/cloud-client",
+              "concepts/live-client",
+              "concepts/entries",
+              "concepts/settings"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/authentication",
+              "guides/entries-crud",
+              "guides/real-time-events",
+              "guides/file-uploads",
+              "guides/filtering-queries"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Cloud API",
+            "pages": [
+              "api/cloud-client",
+              "api/auth-group",
+              "api/entry-group",
+              "api/settings-group",
+              "api/orm-group"
+            ]
+          },
+          {
+            "group": "Live Client",
+            "pages": [
+              "api/live-client",
+              "api/live-events"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/entry-types",
+              "api/types/field-types",
+              "api/types/settings-types",
+              "api/types/filter-types"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/mime-types",
+              "api/currencies"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "REST API client with authentication, entry, settings, and ORM groups",
+    "Real-time WebSocket client for live updates and event subscriptions",
+    "Comprehensive TypeScript types for entries, fields, settings, and filters",
+    "File upload support with image optimization",
+    "Advanced filtering and querying capabilities"
+  ],
+  "publicApiSurface": [
+    "InCloudClient",
+    "InLiveClient",
+    "MimeTypes",
+    "Currencies",
+    "Entry types and interfaces",
+    "Settings types and interfaces",
+    "Field types and interfaces",
+    "Filter types and operators"
+  ]
+}
