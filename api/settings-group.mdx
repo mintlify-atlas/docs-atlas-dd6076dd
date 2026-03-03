@@ -1,0 +1,248 @@
+---
+title: 'SettingsGroup'
+description: 'Manage application settings and configuration'
+---
+
+## Overview
+
+The `SettingsGroup` class provides methods for retrieving and updating application settings. Settings are global configuration values that affect application behavior.
+
+Access this group via `client.settings`.
+
+## Methods
+
+### getSettings
+
+```typescript
+async getSettings<S extends Settings = Settings>(
+  settingsType: string
+): Promise<S>
+```
+
+Retrieves settings for a specific settings type.
+
+<ParamField path="settingsType" type="string" required>
+  The type of settings to retrieve (e.g., "app", "email", "payment").
+</ParamField>
+
+<ResponseField name="settings" type="S">
+  The settings object with all configuration values.
+</ResponseField>
+
+#### Example
+
+```typescript
+const emailSettings = await client.settings.getSettings('email');
+console.log('SMTP Host:', emailSettings.smtpHost);
+console.log('From Address:', emailSettings.fromAddress);
+```
+
+### getSettingsWithModifiedTime
+
+```typescript
+async getSettingsWithModifiedTime<S extends Settings = Settings>(
+  settingsType: string
+): Promise<SettingsWithTimestamp<S>>
+```
+
+Retrieves settings along with the last modified timestamp.
+
+<ParamField path="settingsType" type="string" required>
+  The type of settings to retrieve.
+</ParamField>
+
+<ResponseField name="response" type="SettingsWithTimestamp<S>">
+  Settings object with timestamp metadata.
+  
+  <Expandable title="properties">
+    <ResponseField name="settings" type="S">
+      The settings data.
+    </ResponseField>
+    
+    <ResponseField name="modifiedAt" type="string">
+      ISO 8601 timestamp of last modification.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await client.settings.getSettingsWithModifiedTime('app');
+console.log('Settings:', result.settings);
+console.log('Last modified:', new Date(result.modifiedAt));
+```
+
+### updateSettings
+
+```typescript
+async updateSettings<S extends Settings = Settings>(
+  settingsType: string,
+  data: Partial<S>
+): Promise<S>
+```
+
+Updates settings with new values. Only provided fields are updated.
+
+<ParamField path="settingsType" type="string" required>
+  The type of settings to update.
+</ParamField>
+
+<ParamField path="data" type="Partial<S>" required>
+  Object containing the settings fields to update.
+</ParamField>
+
+<ResponseField name="settings" type="S">
+  The complete updated settings object.
+</ResponseField>
+
+#### Example
+
+```typescript
+const updated = await client.settings.updateSettings('email', {
+  smtpHost: 'smtp.newprovider.com',
+  smtpPort: 587,
+  fromAddress: 'noreply@example.com'
+});
+
+console.log('Updated settings:', updated);
+```
+
+### runSettingsAction
+
+```typescript
+async runSettingsAction<T, R>(
+  settingsType: string,
+  action: string,
+  data: T,
+  enqueue: boolean = false
+): Promise<R>
+```
+
+Executes a custom action on settings. This allows for complex operations beyond simple CRUD.
+
+<ParamField path="settingsType" type="string" required>
+  The type of settings the action operates on.
+</ParamField>
+
+<ParamField path="action" type="string" required>
+  The name of the action to execute.
+</ParamField>
+
+<ParamField path="data" type="T" required>
+  Data to pass to the action.
+</ParamField>
+
+<ParamField path="enqueue" type="boolean" optional>
+  Whether to enqueue the action for background processing. Defaults to `false`.
+</ParamField>
+
+<ResponseField name="result" type="R">
+  The result returned by the action.
+</ResponseField>
+
+#### Example
+
+```typescript
+// Test email configuration
+const result = await client.settings.runSettingsAction(
+  'email',
+  'sendTestEmail',
+  { recipient: 'admin@example.com' }
+);
+
+if (result.success) {
+  console.log('Test email sent successfully');
+}
+
+// Enqueue a background task
+await client.settings.runSettingsAction(
+  'analytics',
+  'generateReport',
+  { period: 'monthly' },
+  true // enqueue
+);
+```
+
+## Types
+
+### Settings
+
+```typescript
+interface Settings {
+  [key: string]: unknown;
+}
+```
+
+Base interface for settings. Your application will define specific settings types that extend this interface.
+
+### SettingsWithTimestamp
+
+```typescript
+interface SettingsWithTimestamp<S extends Settings = Settings> {
+  settings: S;
+  modifiedAt: string;
+}
+```
+
+## Common Use Cases
+
+### Caching Settings
+
+```typescript
+let cachedSettings = null;
+let cacheTime = null;
+
+async function getCachedSettings(settingsType: string, maxAge = 5 * 60 * 1000) {
+  const now = Date.now();
+  
+  if (cachedSettings && cacheTime && (now - cacheTime) < maxAge) {
+    return cachedSettings;
+  }
+  
+  cachedSettings = await client.settings.getSettings(settingsType);
+  cacheTime = now;
+  
+  return cachedSettings;
+}
+```
+
+### Validating Before Update
+
+```typescript
+async function updateEmailSettings(newSettings) {
+  // Validate settings
+  if (!newSettings.smtpHost || !newSettings.fromAddress) {
+    throw new Error('SMTP host and from address are required');
+  }
+  
+  // Test the new settings first
+  const testResult = await client.settings.runSettingsAction(
+    'email',
+    'testConnection',
+    newSettings
+  );
+  
+  if (!testResult.success) {
+    throw new Error('Email settings validation failed');
+  }
+  
+  // Update if validation passed
+  return await client.settings.updateSettings('email', newSettings);
+}
+```
+
+### Conditional Updates Based on Timestamp
+
+```typescript
+async function updateIfNewer(settingsType: string, newData, clientTimestamp) {
+  const current = await client.settings.getSettingsWithModifiedTime(settingsType);
+  
+  // Only update if client has newer data
+  if (new Date(clientTimestamp) > new Date(current.modifiedAt)) {
+    return await client.settings.updateSettings(settingsType, newData);
+  }
+  
+  return current.settings;
+}
+```

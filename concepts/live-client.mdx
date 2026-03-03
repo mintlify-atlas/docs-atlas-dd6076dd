@@ -1,0 +1,372 @@
+---
+title: InLiveClient
+description: Real-time WebSocket client for live updates and event subscriptions
+---
+
+## Overview
+
+The `InLiveClient` provides real-time communication capabilities through WebSocket connections. It enables your application to receive instant updates when entries or settings change on the server, without polling.
+
+## Key Features
+
+- **Entry Subscriptions**: Listen to changes on specific entries
+- **Entry Type Subscriptions**: Monitor all entries of a given type
+- **Settings Subscriptions**: Track settings updates in real-time
+- **Connection Management**: Automatic reconnection and status monitoring
+- **Room-based Architecture**: Efficient event distribution through rooms
+
+## Creating a Live Client
+
+```typescript
+import { InLiveClient } from '@inspatial/cloud-client';
+
+// Create client with default WebSocket host
+const liveClient = new InLiveClient();
+
+// Or specify a custom WebSocket host
+const liveClient = new InLiveClient('wss://live.example.com');
+```
+
+## Connection Management
+
+### Starting the Connection
+
+```typescript
+// Start connection without authentication
+liveClient.start();
+
+// Start with authentication token
+liveClient.start('your-auth-token');
+```
+
+### Stopping the Connection
+
+```typescript
+liveClient.stop();
+```
+
+### Monitoring Connection Status
+
+Track the connection status to update your UI:
+
+```typescript
+const listenerId = liveClient.onConnectionStatus((status) => {
+  switch (status) {
+    case 'connecting':
+      console.log('Connecting to server...');
+      break;
+    case 'open':
+      console.log('Connected to server');
+      break;
+    case 'reconnected':
+      console.log('Reconnected to server');
+      break;
+    case 'closed':
+      console.log('Disconnected from server');
+      break;
+    case 'error':
+      console.error('Connection error');
+      break;
+  }
+});
+
+// Remove status listener when no longer needed
+liveClient.removeConnectionStatusListener(listenerId);
+```
+
+## Entry Subscriptions
+
+Subscribe to changes on specific entries by their type and ID.
+
+### Listening to Entry Events
+
+```typescript
+import type { Entry, EntryListener } from '@inspatial/cloud-client/types';
+
+interface Post extends Entry {
+  title: string;
+  content: string;
+  status: string;
+}
+
+const postListener: EntryListener<Post> = {
+  name: 'post-listener',
+  callback: (event, data) => {
+    switch (event) {
+      case 'update':
+        console.log('Post updated:', data);
+        break;
+      case 'delete':
+        console.log('Post deleted');
+        break;
+      case 'join':
+        console.log('Joined post room');
+        break;
+      case 'leave':
+        console.log('Left post room');
+        break;
+    }
+  }
+};
+
+liveClient.onEntry<Post>('Post', '123', postListener);
+```
+
+### Removing Entry Listeners
+
+```typescript
+// Remove specific listener
+liveClient.removeEntryListener('Post', '123', 'post-listener');
+
+// Leave entry room entirely (removes all listeners)
+liveClient.leaveEntry('Post', '123');
+```
+
+## Entry Type Subscriptions
+
+Monitor all entries of a specific type to receive events whenever any entry of that type is created, updated, or deleted.
+
+### Listening to Entry Type Events
+
+```typescript
+import type { EntryTypeListener } from '@inspatial/cloud-client/types';
+
+interface PostData {
+  id: string;
+  title: string;
+  content: string;
+}
+
+const postTypeListener: EntryTypeListener<PostData> = {
+  name: 'post-type-listener',
+  callback: (event, data) => {
+    switch (event) {
+      case 'create':
+        console.log('New post created:', data);
+        break;
+      case 'update':
+        console.log('Post updated:', data);
+        break;
+      case 'delete':
+        console.log('Post deleted:', data);
+        break;
+    }
+  }
+};
+
+liveClient.onEntryType<PostData>('Post', postTypeListener);
+```
+
+### Removing Entry Type Listeners
+
+```typescript
+// Remove specific listener
+liveClient.removeEntryTypeListener('Post', 'post-type-listener');
+
+// Leave entry type room entirely (removes all listeners)
+liveClient.leaveEntryType('Post');
+```
+
+## Settings Subscriptions
+
+Subscribe to settings changes to keep your application configuration in sync.
+
+### Listening to Settings Events
+
+```typescript
+import type { SettingsListener } from '@inspatial/cloud-client/types';
+
+interface AppSettings {
+  theme: string;
+  language: string;
+  notifications: boolean;
+}
+
+const settingsListener: SettingsListener<AppSettings> = {
+  name: 'settings-listener',
+  callback: (event, data) => {
+    switch (event) {
+      case 'update':
+        console.log('Settings updated:', data);
+        // Update app configuration
+        applySettings(data);
+        break;
+      case 'join':
+        console.log('Joined settings room');
+        break;
+      case 'leave':
+        console.log('Left settings room');
+        break;
+    }
+  }
+};
+
+liveClient.onSettings<typeof settingsListener>('AppSettings', settingsListener);
+```
+
+### Removing Settings Listeners
+
+```typescript
+// Remove specific listener
+liveClient.removeSettingsListener('AppSettings', 'settings-listener');
+
+// Leave settings room entirely (removes all listeners)
+liveClient.leaveSettings('AppSettings');
+```
+
+## Custom Room Management
+
+For advanced use cases, you can join and leave custom rooms:
+
+```typescript
+// Join a custom room
+liveClient.joinRoom('custom-room');
+
+// Join a global room (shared across all users)
+liveClient.joinRoom('global-announcements', true);
+
+// Leave a room
+liveClient.leaveRoom('custom-room');
+
+// Leave a global room
+liveClient.leaveRoom('global-announcements', true);
+```
+
+## Event Types
+
+### Entry Events
+
+- **update**: Entry data has changed
+- **delete**: Entry has been deleted
+- **create**: New entry has been created (entry type subscriptions only)
+- **join**: Successfully joined the entry room
+- **leave**: Left the entry room
+
+### Settings Events
+
+- **update**: Settings data has changed
+- **join**: Successfully joined the settings room
+- **leave**: Left the settings room
+
+### Connection Status
+
+- **connecting**: Initial connection attempt
+- **open**: Connection established
+- **reconnected**: Connection re-established after disconnect
+- **closed**: Connection closed
+- **error**: Connection error occurred
+
+## Automatic Room Management
+
+The client automatically manages room subscriptions:
+
+- When you add the first listener for an entry/type/settings, the client joins the corresponding room
+- When you remove the last listener, the client automatically leaves the room
+- This ensures efficient resource usage and prevents unnecessary network traffic
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Named Listeners" icon="tag">
+    Always use unique, descriptive names for listeners to easily manage and remove them later.
+  </Card>
+  <Card title="Cleanup" icon="broom">
+    Remove listeners when components unmount to prevent memory leaks and unnecessary event handling.
+  </Card>
+  <Card title="Connection Status" icon="signal">
+    Monitor connection status to provide feedback to users and handle reconnection scenarios.
+  </Card>
+  <Card title="Type Safety" icon="shield">
+    Use TypeScript interfaces for your data types to ensure type-safe event handling.
+  </Card>
+</CardGroup>
+
+## Real-World Example
+
+```typescript
+import { InLiveClient } from '@inspatial/cloud-client';
+import type { Entry, EntryListener } from '@inspatial/cloud-client/types';
+
+interface Post extends Entry {
+  title: string;
+  content: string;
+  authorId: string;
+}
+
+class PostManager {
+  private liveClient: InLiveClient;
+  private currentPostId: string | null = null;
+
+  constructor() {
+    this.liveClient = new InLiveClient();
+    
+    // Monitor connection status
+    this.liveClient.onConnectionStatus((status) => {
+      if (status === 'open') {
+        console.log('Real-time connection established');
+      } else if (status === 'error') {
+        console.error('Connection failed, retrying...');
+      }
+    });
+
+    // Start connection
+    this.liveClient.start();
+  }
+
+  watchPost(postId: string) {
+    // Clean up previous subscription
+    if (this.currentPostId) {
+      this.liveClient.leaveEntry('Post', this.currentPostId);
+    }
+
+    this.currentPostId = postId;
+
+    const listener: EntryListener<Post> = {
+      name: 'post-watcher',
+      callback: (event, data) => {
+        if (event === 'update') {
+          this.handlePostUpdate(data);
+        } else if (event === 'delete') {
+          this.handlePostDelete();
+        }
+      }
+    };
+
+    this.liveClient.onEntry<Post>('Post', postId, listener);
+  }
+
+  private handlePostUpdate(post: Post) {
+    console.log('Post updated:', post);
+    // Update UI with new data
+  }
+
+  private handlePostDelete() {
+    console.log('Post was deleted');
+    // Redirect or show message
+  }
+
+  cleanup() {
+    if (this.currentPostId) {
+      this.liveClient.leaveEntry('Post', this.currentPostId);
+    }
+    this.liveClient.stop();
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cloud Client" icon="cloud" href="/concepts/cloud-client">
+    Learn about the main API client
+  </Card>
+  <Card title="Entries" icon="database" href="/concepts/entries">
+    Understand the Entry system
+  </Card>
+  <Card title="Settings" icon="gear" href="/concepts/settings">
+    Explore the Settings system
+  </Card>
+  <Card title="Integration Guide" icon="puzzle" href="/guides/real-time-events">
+    Build real-time features
+  </Card>
+</CardGroup>

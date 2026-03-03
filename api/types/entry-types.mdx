@@ -1,0 +1,244 @@
+---
+title: Entry Types
+description: Type definitions for entries and entry types in Inspatial Cloud Client SDK
+---
+
+## Entry
+
+Represents a data entry in the system. Each entry has an ID, timestamps, and custom field values.
+
+<ResponseField name="id" type="IDValue" required>
+  The unique identifier for the entry
+</ResponseField>
+
+<ResponseField name="createdAt" type="number" required>
+  Unix timestamp (milliseconds) when the entry was created
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number" required>
+  Unix timestamp (milliseconds) when the entry was last updated
+</ResponseField>
+
+<ResponseField name="in__tags" type="number[]">
+  Optional array of tag IDs associated with this entry
+</ResponseField>
+
+<ResponseField name="[key: string]" type="InValue | undefined">
+  Custom field values indexed by field key
+</ResponseField>
+
+### Example
+
+```typescript
+const entry: Entry = {
+  id: "01J5XQZQY9Z8X7W6V5T4S3R2Q1",
+  createdAt: 1704067200000,
+  updatedAt: 1704153600000,
+  in__tags: [1, 2, 3],
+  name: "Product Name",
+  price: 99.99,
+  inStock: true
+};
+```
+
+---
+
+## EntryType
+
+Defines the schema and configuration for an entry type, including its fields, actions, and connections.
+
+<ResponseField name="name" type="string" required>
+  Unique identifier for the entry type
+</ResponseField>
+
+<ResponseField name="label" type="string" required>
+  Display name for the entry type
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  Description of what this entry type represents
+</ResponseField>
+
+<ResponseField name="extension" type="string">
+  Extension identifier if this is an extended entry type
+</ResponseField>
+
+<ResponseField name="systemGlobal" type="boolean" required>
+  Whether this entry type is a system-wide global type
+</ResponseField>
+
+<ResponseField name="fields" type="Array<InField>" required>
+  Array of field definitions for this entry type
+</ResponseField>
+
+<ResponseField name="titleFields" type="Array<InField>" required>
+  Fields used to generate the entry's title
+</ResponseField>
+
+<ResponseField name="displayFields" type="Array<InField>" required>
+  Fields displayed in list views
+</ResponseField>
+
+<ResponseField name="fieldGroups" type="Array<FieldGroup>" required>
+  Groupings of fields for organization in the UI
+</ResponseField>
+
+<ResponseField name="config" type="EntryTypeConfig" required>
+  Configuration object for this entry type
+</ResponseField>
+
+<Expandable title="EntryTypeConfig Properties">
+  <ResponseField name="label" type="string" required>
+    Display label for the entry type
+  </ResponseField>
+
+  <ResponseField name="description" type="string" required>
+    Description of the entry type
+  </ResponseField>
+
+  <ResponseField name="tableName" type="string" required>
+    Database table name for storing entries
+  </ResponseField>
+
+  <ResponseField name="titleField" type="string">
+    Key of the field to use as the entry's title
+  </ResponseField>
+
+  <ResponseField name="taggable" type="boolean">
+    Whether entries of this type can be tagged
+  </ResponseField>
+
+  <ResponseField name="idMode" type="IDMode" required>
+    ID generation mode: `"uuid"`, `"ulid"`, or `"auto"`
+  </ResponseField>
+
+  <ResponseField name="searchFields" type="Array<string>">
+    Field keys to include in search operations
+  </ResponseField>
+
+  <ResponseField name="defaultListFields" type="Array<string>">
+    Field keys to display by default in list views
+  </ResponseField>
+
+  <ResponseField name="extension" type="object">
+    Extension configuration details if applicable
+  </ResponseField>
+</Expandable>
+
+<ResponseField name="actions" type="Array<EntryAction>" required>
+  Available actions for this entry type
+</ResponseField>
+
+<Expandable title="EntryAction Properties">
+  <ResponseField name="key" type="string" required>
+    Unique identifier for the action
+  </ResponseField>
+
+  <ResponseField name="label" type="string">
+    Display label for the action
+  </ResponseField>
+
+  <ResponseField name="description" type="string">
+    Description of what the action does
+  </ResponseField>
+
+  <ResponseField name="params" type="Array<InField>" required>
+    Input parameters required for the action
+  </ResponseField>
+</Expandable>
+
+<ResponseField name="defaultListFields" type="Array<InField>" required>
+  Default fields to display in list views
+</ResponseField>
+
+<ResponseField name="statusField" type="InField<'ChoicesField'>">
+  Optional field representing the entry's status
+</ResponseField>
+
+<ResponseField name="imageField" type="InField<'ImageField'>">
+  Optional field for the entry's primary image
+</ResponseField>
+
+<ResponseField name="connections" type="Array<EntryConnection>" required>
+  List of connections to other entry types
+</ResponseField>
+
+<ResponseField name="permission" type="Record<string, unknown>" required>
+  Permission configuration for this entry type
+</ResponseField>
+
+### Example
+
+```typescript
+const entryType = await cloud.entries.getEntryType('product');
+
+console.log(entryType.label); // "Product"
+console.log(entryType.config.tableName); // "products"
+console.log(entryType.fields.length); // 12
+```
+
+---
+
+## EntryConnection
+
+Describes a connection relationship between two entry types.
+
+<ResponseField name="referencingEntry" type="string" required>
+  The key of the entry type that contains the connection field
+</ResponseField>
+
+<ResponseField name="referencingEntryLabel" type="string" required>
+  Display label for the referencing entry type
+</ResponseField>
+
+<ResponseField name="referencingField" type="string" required>
+  The key of the connection field in the referencing entry
+</ResponseField>
+
+<ResponseField name="referencingFieldLabel" type="string" required>
+  Display label for the connection field
+</ResponseField>
+
+<ResponseField name="listFields" type="Array<InField>" required>
+  Fields to display when listing connected entries
+</ResponseField>
+
+### Example
+
+```typescript
+const connection: EntryConnection = {
+  referencingEntry: "order",
+  referencingEntryLabel: "Order",
+  referencingField: "product",
+  referencingFieldLabel: "Product",
+  listFields: [
+    { key: "orderNumber", label: "Order #", type: "DataField" },
+    { key: "quantity", label: "Quantity", type: "IntField" }
+  ]
+};
+```
+
+---
+
+## IDMode
+
+Specifies the ID generation strategy for entries.
+
+```typescript
+type IDMode = "uuid" | "ulid" | "auto";
+```
+
+- `"uuid"` - Standard UUID v4 format
+- `"ulid"` - Universally Unique Lexicographically Sortable Identifier
+- `"auto"` - Auto-incrementing integer ID
+
+### Example
+
+```typescript
+const config: EntryTypeConfig = {
+  tableName: "products",
+  idMode: "ulid",
+  label: "Product",
+  description: "Product catalog entries"
+};
+```

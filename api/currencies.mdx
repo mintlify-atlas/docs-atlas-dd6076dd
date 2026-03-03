@@ -1,0 +1,325 @@
+---
+title: "Currencies"
+description: "Predefined currency configurations for formatting and display"
+---
+
+## Overview
+
+The `Currencies` object provides predefined currency configurations for common international currencies. Each currency includes formatting options such as symbol position, decimal separators, and thousands separators.
+
+## Import
+
+```typescript
+import { Currencies } from '@inspatial/cloud';
+```
+
+## Supported Currencies
+
+The SDK includes the following predefined currencies:
+
+### USD - US Dollar
+
+```typescript
+Currencies.USD
+// {
+//   code: 'USD',
+//   symbol: '$',
+//   name: 'US Dollar',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 2
+// }
+```
+
+### EUR - Euro
+
+```typescript
+Currencies.EUR
+// {
+//   code: 'EUR',
+//   symbol: '€',
+//   name: 'Euro',
+//   symbolPosition: 'right',
+//   decimalSeparator: ',',
+//   thousandsSeparator: '.',
+//   decimalPlaces: 2
+// }
+```
+
+### GBP - British Pound
+
+```typescript
+Currencies.GBP
+// {
+//   code: 'GBP',
+//   symbol: '£',
+//   name: 'British Pound',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 2
+// }
+```
+
+### JPY - Japanese Yen
+
+```typescript
+Currencies.JPY
+// {
+//   code: 'JPY',
+//   symbol: '¥',
+//   name: 'Japanese Yen',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 0
+// }
+```
+
+### AUD - Australian Dollar
+
+```typescript
+Currencies.AUD
+// {
+//   code: 'AUD',
+//   symbol: 'A$',
+//   name: 'Australian Dollar',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 2
+// }
+```
+
+### CAD - Canadian Dollar
+
+```typescript
+Currencies.CAD
+// {
+//   code: 'CAD',
+//   symbol: 'C$',
+//   name: 'Canadian Dollar',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 2
+// }
+```
+
+### ILS - Israeli New Shekel
+
+```typescript
+Currencies.ILS
+// {
+//   code: 'ILS',
+//   symbol: '₪',
+//   name: 'Israeli New Shekel',
+//   symbolPosition: 'left',
+//   decimalSeparator: '.',
+//   thousandsSeparator: ',',
+//   decimalPlaces: 2
+// }
+```
+
+## Types
+
+### Currency
+
+Configuration object for a currency.
+
+```typescript
+interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  symbolPosition?: 'left' | 'right';
+  decimalSeparator?: string;
+  thousandsSeparator?: string;
+  decimalPlaces?: number;
+}
+```
+
+**Properties:**
+- `code` - ISO 4217 currency code
+- `symbol` - Currency symbol (e.g., `'$'`, `'€'`, `'£'`)
+- `name` - Full currency name
+- `symbolPosition` - Where to place the symbol relative to the amount (`'left'` or `'right'`)
+- `decimalSeparator` - Character used to separate decimals (e.g., `'.'` or `','`)
+- `thousandsSeparator` - Character used to separate thousands (e.g., `','` or `'.'`)
+- `decimalPlaces` - Number of decimal places to display
+
+### CurrencyCode
+
+Supported currency codes.
+
+```typescript
+type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'ILS'
+```
+
+## Usage with CurrencyField
+
+The `Currencies` object is commonly used with the `CurrencyField` type when defining entry types:
+
+```typescript
+import { Currencies, type CurrencyField } from '@inspatial/cloud';
+
+const priceField: CurrencyField = {
+  type: 'CurrencyField',
+  key: 'price',
+  label: 'Price',
+  currency: Currencies.USD,
+  required: true
+};
+```
+
+You can also specify just the currency code:
+
+```typescript
+const priceField: CurrencyField = {
+  type: 'CurrencyField',
+  key: 'price',
+  label: 'Price',
+  currencyCode: 'EUR',
+  required: true
+};
+```
+
+## Usage Examples
+
+### Formatting Currency Values
+
+```typescript
+function formatCurrency(amount: number, currencyCode: CurrencyCode): string {
+  const currency = Currencies[currencyCode];
+  
+  // Format the number with proper separators
+  const formatted = amount.toFixed(currency.decimalPlaces)
+    .replace('.', currency.decimalSeparator || '.')
+    .replace(/(\d)(?=(\d{3})+(?!\d))/g, `$1${currency.thousandsSeparator || ','}`);
+  
+  // Position the symbol
+  if (currency.symbolPosition === 'right') {
+    return `${formatted}${currency.symbol}`;
+  }
+  return `${currency.symbol}${formatted}`;
+}
+
+const usdPrice = formatCurrency(1234.56, 'USD');
+// Returns: '$1,234.56'
+
+const eurPrice = formatCurrency(1234.56, 'EUR');
+// Returns: '1.234,56€'
+
+const jpyPrice = formatCurrency(1234, 'JPY');
+// Returns: '¥1,234'
+```
+
+### Creating Multi-Currency Product
+
+```typescript
+import { Inspatial, Currencies } from '@inspatial/cloud';
+
+const client = new Inspatial({ accountId: 'your-account-id' });
+
+const productEntryType = await client.db.createEntryType({
+  key: 'product',
+  name: 'Product',
+  fields: [
+    {
+      type: 'DataField',
+      key: 'name',
+      label: 'Product Name',
+      required: true
+    },
+    {
+      type: 'CurrencyField',
+      key: 'price_usd',
+      label: 'Price (USD)',
+      currency: Currencies.USD
+    },
+    {
+      type: 'CurrencyField',
+      key: 'price_eur',
+      label: 'Price (EUR)',
+      currency: Currencies.EUR
+    },
+    {
+      type: 'CurrencyField',
+      key: 'price_gbp',
+      label: 'Price (GBP)',
+      currency: Currencies.GBP
+    }
+  ]
+});
+```
+
+### Getting Currency Display Name
+
+```typescript
+function getCurrencyDisplayName(code: CurrencyCode): string {
+  return Currencies[code].name;
+}
+
+const name = getCurrencyDisplayName('USD');
+// Returns: 'US Dollar'
+```
+
+### Building a Currency Selector
+
+```typescript
+type CurrencyOption = {
+  value: CurrencyCode;
+  label: string;
+  symbol: string;
+};
+
+const currencyOptions: CurrencyOption[] = Object.entries(Currencies).map(
+  ([code, currency]) => ({
+    value: code as CurrencyCode,
+    label: `${currency.symbol} ${currency.name}`,
+    symbol: currency.symbol
+  })
+);
+
+// Returns:
+// [
+//   { value: 'USD', label: '$ US Dollar', symbol: '$' },
+//   { value: 'EUR', label: '€ Euro', symbol: '€' },
+//   { value: 'GBP', label: '£ British Pound', symbol: '£' },
+//   ...
+// ]
+```
+
+### Validating Currency Amounts
+
+```typescript
+function validateCurrencyAmount(
+  amount: number,
+  currencyCode: CurrencyCode
+): boolean {
+  const currency = Currencies[currencyCode];
+  
+  // Check if amount has correct decimal places
+  const decimalPart = amount.toString().split('.')[1];
+  if (decimalPart && decimalPart.length > currency.decimalPlaces) {
+    return false;
+  }
+  
+  return true;
+}
+
+const isValid1 = validateCurrencyAmount(99.99, 'USD');
+// Returns: true
+
+const isValid2 = validateCurrencyAmount(99.999, 'USD');
+// Returns: false (too many decimal places)
+
+const isValid3 = validateCurrencyAmount(1000.5, 'JPY');
+// Returns: false (JPY has 0 decimal places)
+```
+
+## See Also
+
+- [CurrencyField](/api/types/field-types#currencyfield) - Learn how to use currency fields in entry types
+- [Entry Types](/api/types/entry-types) - Complete guide to defining entry types

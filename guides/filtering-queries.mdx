@@ -1,0 +1,675 @@
+---
+title: Filtering and Querying Entries
+description: Advanced filtering, sorting, and querying capabilities for entry lists
+---
+
+The Inspatial Cloud Client SDK provides powerful filtering and querying capabilities through the `ListOptions` interface, supporting complex filters, sorting, pagination, and column selection.
+
+## Basic Query with Pagination
+
+Retrieve entries with pagination and sorting.
+
+```typescript
+const response = await client.entry.getEntryList('product', {
+  limit: 25,
+  offset: 0,
+  orderBy: 'createdAt',
+  order: 'desc'
+});
+
+console.log(`Showing ${response.rowCount} of ${response.totalCount} products`);
+```
+
+## Simple Filter
+
+Filter entries using exact match conditions.
+
+### Object Notation
+
+```typescript
+// Find all active products
+const response = await client.entry.getEntryList('product', {
+  filter: {
+    status: 'active',
+    category: 'Electronics'
+  }
+});
+
+// Multiple conditions are combined with AND logic
+```
+
+### Null Values
+
+```typescript
+// Find products with no description
+const response = await client.entry.getEntryList('product', {
+  filter: {
+    description: null
+  }
+});
+```
+
+## Advanced Filters
+
+Use the array filter syntax for complex operations.
+
+### Comparison Operators
+
+```typescript
+// Find products priced over $50
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'price',
+      op: 'greaterThan',
+      value: 50
+    }
+  ]
+});
+
+// Available comparison operators:
+// '>' | '>=' | '<' | '<='
+// 'greaterThan' | 'greaterThanOrEqual' | 'lessThan' | 'lessThanOrEqual'
+```
+
+### Equality Operators
+
+```typescript
+// Find inactive products
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'status',
+      op: 'notEqual',
+      value: 'active'
+    }
+  ]
+});
+
+// Available equality operators:
+// '=' | 'equal' | '!=' | 'notEqual'
+```
+
+### Between Operator
+
+```typescript
+// Find products priced between $20 and $100
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'price',
+      op: 'between',
+      value: [20, 100]
+    }
+  ]
+});
+
+// Also available: 'notBetween'
+```
+
+### Empty Checks
+
+```typescript
+// Find products with no description
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'description',
+      op: 'isEmpty'
+    }
+  ]
+});
+
+// Find products with a description
+const response2 = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'description',
+      op: 'isNotEmpty'
+    }
+  ]
+});
+```
+
+### List Membership
+
+```typescript
+// Find products in specific categories
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'category',
+      op: 'inList',
+      value: ['Electronics', 'Computers', 'Accessories']
+    }
+  ]
+});
+
+// Find products NOT in specific categories
+const response2 = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'category',
+      op: 'notInList',
+      value: ['Discontinued', 'Out of Stock']
+    }
+  ]
+});
+```
+
+### String Contains
+
+```typescript
+// Find products with 'wireless' in the name
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'name',
+      op: 'contains',
+      value: 'wireless',
+      caseSensitive: false
+    }
+  ]
+});
+
+// Other string operators:
+// 'notContains' | 'startsWith' | 'endsWith'
+```
+
+### Array Operations
+
+```typescript
+// Find products with specific tags
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'tags',
+      op: 'arrayContains',
+      value: 'featured'
+    }
+  ]
+});
+
+// Find products with any of these tags
+const response2 = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'tags',
+      op: 'arrayContainsAny',
+      value: ['new', 'sale', 'featured']
+    }
+  ]
+});
+
+// Available array operators:
+// 'arrayContains' | 'arrayNotContains' | 'arrayContainsAny'
+```
+
+## Combining Filters (AND Logic)
+
+Combine multiple filters with AND logic.
+
+```typescript
+// Find active Electronics products priced over $50
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'category',
+      op: 'equal',
+      value: 'Electronics'
+    },
+    {
+      field: 'status',
+      op: 'equal',
+      value: 'active'
+    },
+    {
+      field: 'price',
+      op: 'greaterThan',
+      value: 50
+    }
+  ]
+});
+
+// All conditions must be true (AND)
+```
+
+## OR Filters
+
+Use `orFilter` for conditions where any can be true.
+
+```typescript
+// Find products that are either on sale OR featured
+const response = await client.entry.getEntryList('product', {
+  orFilter: [
+    {
+      field: 'onSale',
+      op: 'equal',
+      value: true
+    },
+    {
+      field: 'featured',
+      op: 'equal',
+      value: true
+    }
+  ]
+});
+```
+
+## Combining AND and OR Filters
+
+Use both `filter` and `orFilter` together.
+
+```typescript
+// Find active products that are either on sale OR featured
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'status',
+      op: 'equal',
+      value: 'active'
+    }
+  ],
+  orFilter: [
+    {
+      field: 'onSale',
+      op: 'equal',
+      value: true
+    },
+    {
+      field: 'featured',
+      op: 'equal',
+      value: true
+    }
+  ]
+});
+
+// Logic: status = 'active' AND (onSale = true OR featured = true)
+```
+
+## Nested OR/AND within Filters
+
+Create complex nested conditions within a single filter.
+
+```typescript
+// Find products in Electronics with price > 100 OR products in Books with price > 20
+const response = await client.entry.getEntryList('product', {
+  filter: [
+    {
+      field: 'category',
+      op: 'equal',
+      value: 'Electronics',
+      and: [
+        {
+          op: 'greaterThan',
+          value: 100
+        }
+      ]
+    },
+    {
+      field: 'category',
+      op: 'equal',
+      value: 'Books',
+      or: [
+        {
+          op: 'greaterThan',
+          value: 20
+        }
+      ]
+    }
+  ]
+});
+```
+
+## Column Selection
+
+Optimize queries by selecting only needed columns.
+
+```typescript
+// Only fetch id, name, and price fields
+const response = await client.entry.getEntryList('product', {
+  columns: ['id', 'name', 'price'],
+  limit: 100
+});
+
+// Reduces data transfer and improves performance
+console.log(response.columns); // ['id', 'name', 'price']
+```
+
+<Info>
+  Column selection can significantly improve performance for large datasets by reducing the amount of data transferred.
+</Info>
+
+## Sorting
+
+Sort results by any field.
+
+```typescript
+// Sort by price ascending
+const response = await client.entry.getEntryList('product', {
+  orderBy: 'price',
+  order: 'asc'
+});
+
+// Sort by creation date descending (newest first)
+const response2 = await client.entry.getEntryList('product', {
+  orderBy: 'createdAt',
+  order: 'desc'
+});
+```
+
+## Pagination
+
+Implement efficient pagination for large datasets.
+
+```typescript
+const pageSize = 20;
+let currentPage = 0;
+
+function getPage(page: number) {
+  return client.entry.getEntryList('product', {
+    limit: pageSize,
+    offset: page * pageSize,
+    orderBy: 'createdAt',
+    order: 'desc'
+  });
+}
+
+// Get first page
+const page1 = await getPage(0);
+console.log(`Page 1: ${page1.rowCount} of ${page1.totalCount} total`);
+
+// Get next page
+const page2 = await getPage(1);
+```
+
+## Complete Filtering Example
+
+Here's a comprehensive example showing advanced filtering:
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.yourapp.com');
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  status: 'active' | 'inactive' | 'discontinued';
+  stock: number;
+  tags: string[];
+  featured: boolean;
+  onSale: boolean;
+  createdAt: string;
+}
+
+class ProductSearch {
+  async searchProducts(criteria: {
+    categories?: string[];
+    minPrice?: number;
+    maxPrice?: number;
+    inStock?: boolean;
+    featured?: boolean;
+    searchText?: string;
+  }) {
+    const filters: any[] = [];
+
+    // Category filter
+    if (criteria.categories && criteria.categories.length > 0) {
+      filters.push({
+        field: 'category',
+        op: 'inList',
+        value: criteria.categories
+      });
+    }
+
+    // Price range filter
+    if (criteria.minPrice !== undefined && criteria.maxPrice !== undefined) {
+      filters.push({
+        field: 'price',
+        op: 'between',
+        value: [criteria.minPrice, criteria.maxPrice]
+      });
+    } else if (criteria.minPrice !== undefined) {
+      filters.push({
+        field: 'price',
+        op: 'greaterThanOrEqual',
+        value: criteria.minPrice
+      });
+    } else if (criteria.maxPrice !== undefined) {
+      filters.push({
+        field: 'price',
+        op: 'lessThanOrEqual',
+        value: criteria.maxPrice
+      });
+    }
+
+    // Stock filter
+    if (criteria.inStock) {
+      filters.push({
+        field: 'stock',
+        op: 'greaterThan',
+        value: 0
+      });
+    }
+
+    // Featured filter
+    if (criteria.featured) {
+      filters.push({
+        field: 'featured',
+        op: 'equal',
+        value: true
+      });
+    }
+
+    // Search text filter
+    if (criteria.searchText) {
+      filters.push({
+        field: 'name',
+        op: 'contains',
+        value: criteria.searchText,
+        caseSensitive: false
+      });
+    }
+
+    // Always filter out discontinued products
+    filters.push({
+      field: 'status',
+      op: 'notEqual',
+      value: 'discontinued'
+    });
+
+    const response = await client.entry.getEntryList<Product>('product', {
+      filter: filters,
+      orderBy: 'createdAt',
+      order: 'desc',
+      limit: 50
+    });
+
+    return response;
+  }
+
+  async getFeaturedProducts() {
+    return await client.entry.getEntryList<Product>('product', {
+      filter: [
+        {
+          field: 'featured',
+          op: 'equal',
+          value: true
+        },
+        {
+          field: 'status',
+          op: 'equal',
+          value: 'active'
+        }
+      ],
+      columns: ['id', 'name', 'price', 'category'],
+      limit: 10
+    });
+  }
+
+  async getProductsOnSale(category?: string) {
+    const filters: any[] = [
+      {
+        field: 'onSale',
+        op: 'equal',
+        value: true
+      },
+      {
+        field: 'status',
+        op: 'equal',
+        value: 'active'
+      }
+    ];
+
+    if (category) {
+      filters.push({
+        field: 'category',
+        op: 'equal',
+        value: category
+      });
+    }
+
+    return await client.entry.getEntryList<Product>('product', {
+      filter: filters,
+      orderBy: 'price',
+      order: 'asc'
+    });
+  }
+
+  async getLowStockProducts(threshold: number = 10) {
+    return await client.entry.getEntryList<Product>('product', {
+      filter: [
+        {
+          field: 'stock',
+          op: 'lessThanOrEqual',
+          value: threshold
+        },
+        {
+          field: 'stock',
+          op: 'greaterThan',
+          value: 0
+        },
+        {
+          field: 'status',
+          op: 'equal',
+          value: 'active'
+        }
+      ],
+      orderBy: 'stock',
+      order: 'asc'
+    });
+  }
+}
+
+// Usage
+const search = new ProductSearch();
+
+// Search with multiple criteria
+const results = await search.searchProducts({
+  categories: ['Electronics', 'Computers'],
+  minPrice: 50,
+  maxPrice: 500,
+  inStock: true,
+  searchText: 'wireless'
+});
+
+console.log(`Found ${results.totalCount} products`);
+
+// Get featured products
+const featured = await search.getFeaturedProducts();
+
+// Get products on sale
+const onSale = await search.getProductsOnSale('Electronics');
+
+// Get low stock alerts
+const lowStock = await search.getLowStockProducts(5);
+```
+
+## Filter Type Reference
+
+Complete type definitions for filters:
+
+```typescript
+type DBFilter =
+  | Array<InFilter>
+  | Record<string, string | number | null | boolean>;
+
+type InFilter = FilterAll & {
+  field: string;
+  or?: Array<FilterAll>;
+  and?: Array<FilterAll>;
+};
+
+type FilterAll =
+  | FilterEqual      // '=' | 'equal' | '!=' | 'notEqual'
+  | FilterCompare    // '<' | '<=' | '>' | '>='
+  | FilterBetween    // 'between' | 'notBetween'
+  | FilterEmpty      // 'isEmpty' | 'isNotEmpty'
+  | FilterInList     // 'inList' | 'notInList'
+  | FilterContains   // 'contains' | 'notContains' | 'startsWith' | 'endsWith'
+  | FilterArray;     // 'arrayContains' | 'arrayNotContains' | 'arrayContainsAny'
+```
+
+## List Options Interface
+
+```typescript
+interface ListOptions {
+  columns?: Array<string>;
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  order?: 'asc' | 'desc';
+}
+
+interface GetListResponse<T> {
+  rowCount: number;    // Number of rows in this response
+  totalCount: number;  // Total number of matching rows
+  rows: T[];          // Array of entries
+  columns: string[];  // Column names returned
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Column Selection" icon="table-columns">
+    Only request columns you need to reduce data transfer and improve performance.
+  </Card>
+  
+  <Card title="Index Sort Fields" icon="arrow-down-wide-short">
+    Ensure database fields used in `orderBy` are indexed for optimal performance.
+  </Card>
+  
+  <Card title="Limit Results" icon="list-check">
+    Always use `limit` to avoid fetching excessive data. Implement pagination for large datasets.
+  </Card>
+  
+  <Card title="Filter Early" icon="filter">
+    Apply filters on the server side rather than fetching all data and filtering client-side.
+  </Card>
+</CardGroup>
+
+## Performance Tips
+
+<Steps>
+  <Step title="Use simple filters when possible">
+    Object notation filters (`{ status: 'active' }`) are simpler and often faster than array filters.
+  </Step>
+
+  <Step title="Combine filters efficiently">
+    Use `filter` for AND conditions and `orFilter` for OR conditions instead of complex nested structures.
+  </Step>
+
+  <Step title="Paginate large results">
+    Always use `limit` and `offset` for large datasets to avoid memory issues and improve load times.
+  </Step>
+
+  <Step title="Cache frequently used queries">
+    Consider caching results of commonly executed queries to reduce server load.
+  </Step>
+</Steps>

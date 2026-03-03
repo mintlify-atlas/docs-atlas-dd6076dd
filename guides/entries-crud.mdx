@@ -1,0 +1,500 @@
+---
+title: CRUD Operations for Entries
+description: Create, read, update, and delete entries in your Inspatial Cloud database
+---
+
+The Inspatial Cloud Client SDK provides a complete set of CRUD operations for managing entries through the `entry` group. All operations are type-safe and support custom entry types.
+
+## Create Entry
+
+Create a new entry in your database.
+
+<Steps>
+  <Step title="Define your entry data">
+    Prepare the entry data as a record of field keys and values:
+
+    ```typescript
+    const newProduct = {
+      name: 'Wireless Mouse',
+      price: 29.99,
+      stock: 150,
+      category: 'Electronics'
+    };
+    ```
+  </Step>
+
+  <Step title="Create the entry">
+    Call `createEntry` with the entry type and data:
+
+    ```typescript
+    const createdEntry = await client.entry.createEntry(
+      'product',
+      newProduct
+    );
+
+    console.log('Created entry ID:', createdEntry.id);
+    ```
+  </Step>
+</Steps>
+
+### Method Signature
+
+```typescript
+createEntry<T = Entry>(
+  entryType: string,
+  entry: Record<string, InValue>
+): Promise<T>
+```
+
+### Example with Type Safety
+
+```typescript
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  category: string;
+}
+
+const product = await client.entry.createEntry<Product>(
+  'product',
+  {
+    name: 'Mechanical Keyboard',
+    price: 89.99,
+    stock: 75,
+    category: 'Electronics'
+  }
+);
+
+// TypeScript knows the type
+console.log(product.name); // Type-safe access
+```
+
+## Read Entry
+
+Retrieve a single entry by its ID.
+
+```typescript
+const product = await client.entry.getEntry<Product>('product', 'prod_123');
+
+console.log(product.name);  // 'Wireless Mouse'
+console.log(product.price); // 29.99
+```
+
+### Method Signature
+
+```typescript
+getEntry<T = Entry>(
+  entryType: string,
+  id: string
+): Promise<T>
+```
+
+## Get Entry List
+
+Retrieve multiple entries with pagination and filtering options.
+
+### Basic List Query
+
+```typescript
+const response = await client.entry.getEntryList<Product>('product');
+
+console.log('Total entries:', response.totalCount);
+console.log('Returned rows:', response.rowCount);
+console.log('Entries:', response.rows);
+```
+
+### With Pagination
+
+```typescript
+const response = await client.entry.getEntryList<Product>('product', {
+  limit: 20,
+  offset: 0,
+  orderBy: 'createdAt',
+  order: 'desc'
+});
+
+// Iterate through results
+response.rows.forEach(product => {
+  console.log(product.name, product.price);
+});
+```
+
+### With Column Selection
+
+```typescript
+// Only fetch specific columns for better performance
+const response = await client.entry.getEntryList('product', {
+  columns: ['id', 'name', 'price'],
+  limit: 50
+});
+```
+
+### Method Signature
+
+```typescript
+getEntryList<T = Record<string, InValue>>(
+  entryType: string,
+  options?: ListOptions
+): Promise<GetListResponse<T>>
+
+interface ListOptions {
+  columns?: Array<string>;
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  order?: 'asc' | 'desc';
+}
+
+interface GetListResponse<T> {
+  rowCount: number;
+  totalCount: number;
+  rows: T[];
+  columns: string[];
+}
+```
+
+## Update Entry
+
+Modify an existing entry by its ID.
+
+<Steps>
+  <Step title="Fetch the entry">
+    First, retrieve the entry you want to update:
+
+    ```typescript
+    const product = await client.entry.getEntry<Product>('product', 'prod_123');
+    ```
+  </Step>
+
+  <Step title="Modify the data">
+    Update the fields you want to change:
+
+    ```typescript
+    product.price = 24.99;
+    product.stock = 200;
+    ```
+  </Step>
+
+  <Step title="Save the changes">
+    Call `updateEntry` to persist the changes:
+
+    ```typescript
+    const updatedProduct = await client.entry.updateEntry(
+      'product',
+      'prod_123',
+      product
+    );
+
+    console.log('Updated price:', updatedProduct.price);
+    ```
+  </Step>
+</Steps>
+
+### Method Signature
+
+```typescript
+updateEntry<T = Record<string, InValue>>(
+  entryType: string,
+  id: IDValue,
+  entry: T
+): Promise<T>
+```
+
+### Partial Update Example
+
+```typescript
+// You can update just specific fields
+const updated = await client.entry.updateEntry(
+  'product',
+  'prod_123',
+  {
+    price: 24.99,
+    stock: 200
+  }
+);
+```
+
+## Delete Entry
+
+Remove an entry from the database.
+
+```typescript
+const result = await client.entry.deleteEntry('product', 'prod_123');
+
+if (result.deleted) {
+  console.log('Entry deleted:', result.entryType, result.id);
+}
+```
+
+### Method Signature
+
+```typescript
+deleteEntry(
+  entryType: string,
+  id: IDValue
+): Promise<{
+  deleted: boolean;
+  entryType: string;
+  id: string;
+}>
+```
+
+<Warning>
+  Deleting an entry is permanent and cannot be undone. Always confirm before deleting entries.
+</Warning>
+
+## Get New Entry Template
+
+Retrieve a template with default values for creating a new entry.
+
+```typescript
+const template = await client.entry.getNewEntry<Product>('product');
+
+// Template contains default values defined in your schema
+console.log(template); // { name: '', price: 0, stock: 0, ... }
+
+// Modify and create
+template.name = 'New Product';
+template.price = 49.99;
+
+const created = await client.entry.createEntry('product', template);
+```
+
+### Method Signature
+
+```typescript
+getNewEntry<T = Record<string, InValue>>(
+  entryType: string
+): Promise<T>
+```
+
+## Count Entries
+
+Count entries with optional filtering and grouping.
+
+### Simple Count
+
+```typescript
+const result = await client.entry.count('product');
+console.log('Total products:', result.count);
+```
+
+### Count with Filter
+
+```typescript
+const result = await client.entry.count('product', {
+  filter: {
+    category: 'Electronics'
+  }
+});
+
+console.log('Electronics count:', result.count);
+```
+
+### Count with Group By
+
+```typescript
+const results = await client.entry.count('product', {
+  groupBy: ['category']
+});
+
+// Returns array of counts per category
+results.forEach(item => {
+  console.log(`${item.category}: ${item.count}`);
+});
+```
+
+### Method Signature
+
+```typescript
+count(entryType: string, options?: {
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+}): Promise<{ count: number }>
+
+count<F extends string>(entryType: string, options: {
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+  groupBy: F[];
+}): Promise<Array<Record<F, string> & { count: number }>>
+```
+
+## Sum Fields
+
+Calculate the sum of numeric fields.
+
+### Simple Sum
+
+```typescript
+const result = await client.entry.sum('product', {
+  fields: ['price', 'stock']
+});
+
+console.log('Total price:', result.price);
+console.log('Total stock:', result.stock);
+```
+
+### Sum with Group By
+
+```typescript
+const results = await client.entry.sum('product', {
+  fields: ['price', 'stock'],
+  groupBy: ['category']
+});
+
+results.forEach(item => {
+  console.log(`${item.category}: $${item.price}, ${item.stock} units`);
+});
+```
+
+### Method Signature
+
+```typescript
+sum<F extends string>(entryType: string, options: {
+  fields: F[];
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+}): Promise<Record<F, number>>
+
+sum<F extends string, G extends string>(entryType: string, options: {
+  fields: F[];
+  filter?: DBFilter;
+  orFilter?: DBFilter;
+  groupBy: G[];
+}): Promise<Array<Record<F, number> & Record<G, string>>>
+```
+
+## Complete CRUD Example
+
+Here's a complete example showing all CRUD operations:
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.yourapp.com');
+
+interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+  priority: number;
+}
+
+// CREATE
+const newTask = await client.entry.createEntry<Task>('task', {
+  title: 'Complete documentation',
+  completed: false,
+  priority: 1
+});
+console.log('Created:', newTask.id);
+
+// READ
+const task = await client.entry.getEntry<Task>('task', newTask.id);
+console.log('Task:', task.title);
+
+// UPDATE
+task.completed = true;
+const updated = await client.entry.updateEntry('task', task.id, task);
+console.log('Updated:', updated.completed);
+
+// LIST
+const list = await client.entry.getEntryList<Task>('task', {
+  filter: { completed: false },
+  orderBy: 'priority',
+  order: 'asc'
+});
+console.log('Pending tasks:', list.rowCount);
+
+// DELETE
+const deleted = await client.entry.deleteEntry('task', newTask.id);
+console.log('Deleted:', deleted.deleted);
+```
+
+## Entry Connections
+
+Count and analyze relationships between entries.
+
+```typescript
+const connections = await client.entry.countConnections('product', 'prod_123');
+
+connections.forEach(conn => {
+  console.log(`${conn.label}: ${conn.count} ${conn.entryType}`);
+  console.log(`Field: ${conn.fieldKey} (${conn.fieldLabel})`);
+});
+```
+
+### Method Signature
+
+```typescript
+countConnections(
+  entryType: string,
+  id: string | number
+): Promise<Array<EntryConnectionInfo>>
+
+interface EntryConnectionInfo {
+  entryType: string;
+  label: string;
+  fieldKey: string;
+  fieldLabel: string;
+  count: number;
+}
+```
+
+## Run Entry Actions
+
+Execute custom actions defined on entry types.
+
+```typescript
+// Run action immediately
+await client.entry.runEntryAction(
+  'order',
+  'order_123',
+  'processPayment',
+  { amount: 99.99, method: 'credit_card' }
+);
+
+// Enqueue action for background processing
+await client.entry.runEntryAction(
+  'order',
+  'order_123',
+  'sendConfirmationEmail',
+  { template: 'order_confirmation' },
+  true // enqueue
+);
+```
+
+### Method Signature
+
+```typescript
+runEntryAction(
+  entryType: string,
+  id: string,
+  action: string,
+  data?: Record<string, InValue>,
+  enqueue?: boolean
+): Promise<void | unknown>
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Type Safety" icon="shield-check">
+    Always define TypeScript interfaces for your entry types to catch errors at compile time.
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Wrap CRUD operations in try-catch blocks to handle network and validation errors.
+  </Card>
+  
+  <Card title="Optimize Queries" icon="gauge-high">
+    Use column selection and pagination to minimize data transfer and improve performance.
+  </Card>
+  
+  <Card title="Validate Before Delete" icon="circle-exclamation">
+    Always confirm user intent before deleting entries to prevent accidental data loss.
+  </Card>
+</CardGroup>

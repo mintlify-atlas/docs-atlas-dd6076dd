@@ -1,0 +1,301 @@
+---
+title: 'InCloudClient'
+description: 'Main client class for Inspatial Cloud API'
+---
+
+## Overview
+
+The `InCloudClient` class is the primary entry point for interacting with the Inspatial Cloud API. It provides access to all API groups (auth, entry, settings, orm) and handles authentication, file uploads, and communication with the server.
+
+## Constructor
+
+```typescript
+new InCloudClient(host?: string, options?: ClientOptions)
+```
+
+<ParamField path="host" type="string" optional>
+  The API host URL. Defaults to `/api` if not specified.
+</ParamField>
+
+<ParamField path="options" type="ClientOptions" optional>
+  Configuration options for the client.
+  
+  <Expandable title="properties">
+    <ParamField path="onNotify" type="(info: NotificationInfo) => Promise<void> | void" optional>
+      Callback function for handling notifications (errors, warnings, success messages). Defaults to console logging.
+    </ParamField>
+    
+    <ParamField path="onRedirect" type="(url: string, response: Response) => void" optional>
+      Callback function for handling redirects. Defaults to `location.href` navigation.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.example.com', {
+  onNotify: (info) => {
+    console.log(`${info.type}: ${info.title} - ${info.message}`);
+  },
+  onRedirect: (url) => {
+    window.location.href = url;
+  }
+});
+```
+
+## Properties
+
+### host
+
+```typescript
+get host(): string
+set host(value: string)
+```
+
+The API host URL. Setting this property updates the internal file endpoint.
+
+### filesEndpoint
+
+```typescript
+get filesEndpoint(): string
+```
+
+The computed endpoint for file operations (read-only).
+
+### headers
+
+```typescript
+headers: Headers
+```
+
+HTTP headers used for all API requests. Defaults to `Content-Type: application/json`.
+
+### auth
+
+```typescript
+auth: AuthGroup
+```
+
+Access to authentication methods. See [AuthGroup](/api/auth-group) for details.
+
+### entry
+
+```typescript
+entry: EntryGroup
+```
+
+Access to entry CRUD operations. See [EntryGroup](/api/entry-group) for details.
+
+### settings
+
+```typescript
+settings: SettingsGroup
+```
+
+Access to settings management. See [SettingsGroup](/api/settings-group) for details.
+
+### orm
+
+```typescript
+orm: ORMGroup
+```
+
+Access to ORM operations. See [ORMGroup](/api/orm-group) for details.
+
+## Methods
+
+### getApiInfo
+
+```typescript
+async getApiInfo(): Promise<CloudAPIDocs | null>
+```
+
+Retrieves API documentation and available endpoints from the server.
+
+<ResponseField name="groups" type="object">
+  Documentation for all available API groups.
+</ResponseField>
+
+#### Example
+
+```typescript
+const apiDocs = await client.getApiInfo();
+if (apiDocs) {
+  console.log('Available groups:', apiDocs.groups);
+}
+```
+
+### ping
+
+```typescript
+async ping(): Promise<boolean>
+```
+
+Checks if the API server is reachable.
+
+<ResponseField name="hasServer" type="boolean">
+  Returns `true` if server responds successfully, `false` otherwise.
+</ResponseField>
+
+#### Example
+
+```typescript
+const isOnline = await client.ping();
+if (isOnline) {
+  console.log('Server is online');
+}
+```
+
+### call
+
+```typescript
+async call<T = unknown>(
+  group: string,
+  action: string,
+  data?: Record<string, unknown>,
+  method?: RequestInit["method"]
+): Promise<T>
+```
+
+Low-level method for making API calls. This is typically used internally by group classes.
+
+<ParamField path="group" type="string" required>
+  The API group name (e.g., "auth", "entry").
+</ParamField>
+
+<ParamField path="action" type="string" required>
+  The action to perform within the group.
+</ParamField>
+
+<ParamField path="data" type="Record<string, unknown>" optional>
+  Data to send with the request.
+</ParamField>
+
+<ParamField path="method" type="string" optional>
+  HTTP method. Defaults to `"POST"`.
+</ParamField>
+
+<ResponseField name="response" type="T">
+  The typed response from the server.
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await client.call('entry', 'getEntry', {
+  entryType: 'product',
+  id: '123'
+});
+```
+
+### uploadFile
+
+```typescript
+uploadFile(options: UploadOptions): void
+```
+
+Uploads a file to the server with progress tracking and callbacks.
+
+<ParamField path="options" type="UploadOptions" required>
+  Upload configuration options.
+  
+  <Expandable title="properties">
+    <ParamField path="fileName" type="string" required>
+      The name to give the uploaded file.
+    </ParamField>
+    
+    <ParamField path="file" type="File" required>
+      The file object to upload.
+    </ParamField>
+    
+    <ParamField path="global" type="boolean" optional>
+      Whether the file should be accessible globally.
+    </ParamField>
+    
+    <ParamField path="publicFile" type="boolean" optional>
+      Whether the file should be publicly accessible.
+    </ParamField>
+    
+    <ParamField path="optimize" type="object" optional>
+      Image optimization options.
+      
+      <Expandable title="properties">
+        <ParamField path="width" type="number" optional>
+          Target width for image optimization.
+        </ParamField>
+        
+        <ParamField path="height" type="number" optional>
+          Target height for image optimization.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField path="progressCallback" type="(progress: ProgressEvent, uid?: string) => void" optional>
+      Called during upload with progress information.
+    </ParamField>
+    
+    <ParamField path="completeCallback" type="(file: Entry) => void" optional>
+      Called when upload completes successfully.
+    </ParamField>
+    
+    <ParamField path="errorCallback" type="(response: unknown, uid?: string) => void" optional>
+      Called if upload fails.
+    </ParamField>
+    
+    <ParamField path="abortCallback" type="(response: unknown, uid?: string) => void" optional>
+      Called if upload is aborted.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```typescript
+const fileInput = document.querySelector('input[type="file"]');
+const file = fileInput.files[0];
+
+client.uploadFile({
+  fileName: 'profile-photo.jpg',
+  file: file,
+  publicFile: true,
+  optimize: {
+    width: 800,
+    height: 800
+  },
+  progressCallback: (progress) => {
+    const percent = (progress.loaded / progress.total) * 100;
+    console.log(`Upload progress: ${percent}%`);
+  },
+  completeCallback: (uploadedFile) => {
+    console.log('Upload complete:', uploadedFile);
+  },
+  errorCallback: (error) => {
+    console.error('Upload failed:', error);
+  }
+});
+```
+
+## Types
+
+### NotificationInfo
+
+```typescript
+interface NotificationInfo {
+  title: string;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+}
+```
+
+### ErrorInfo
+
+```typescript
+interface ErrorInfo {
+  statusCode: number;
+  message: string;
+  title?: string;
+}
+```

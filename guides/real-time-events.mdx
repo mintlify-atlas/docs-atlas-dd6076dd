@@ -1,0 +1,485 @@
+---
+title: Real-Time Event Subscriptions
+description: Subscribe to live updates for entries and entry types with WebSocket connections
+---
+
+The Inspatial Cloud Client SDK provides real-time event subscriptions through the `InLiveClient`, enabling your application to receive instant updates when entries are created, updated, or deleted.
+
+## Initialize the Live Client
+
+Create an instance of `InLiveClient` to manage real-time connections.
+
+```typescript
+import { InLiveClient } from '@inspatial/cloud-client';
+
+const liveClient = new InLiveClient('wss://api.yourapp.com');
+```
+
+<Note>
+  The `InLiveClient` constructor accepts an optional host parameter. If omitted, it uses the default host configuration.
+</Note>
+
+## Start and Stop Connection
+
+Manage the WebSocket connection lifecycle.
+
+<Steps>
+  <Step title="Start the connection">
+    Begin listening for real-time events:
+
+    ```typescript
+    // Start with optional authentication token
+    liveClient.start('your-auth-token');
+    ```
+
+    <Info>
+      The connection will automatically reconnect if it drops. You can monitor the connection status using `onConnectionStatus`.
+    </Info>
+  </Step>
+
+  <Step title="Stop the connection">
+    Close the WebSocket connection when no longer needed:
+
+    ```typescript
+    liveClient.stop();
+    ```
+  </Step>
+</Steps>
+
+### Method Signatures
+
+```typescript
+start(authToken?: string): void
+stop(): void
+```
+
+## Monitor Connection Status
+
+Track the connection state and handle reconnection events.
+
+```typescript
+const listenerId = liveClient.onConnectionStatus((status) => {
+  switch (status) {
+    case 'connected':
+      console.log('WebSocket connected');
+      break;
+    case 'disconnected':
+      console.log('WebSocket disconnected');
+      break;
+    case 'connecting':
+      console.log('WebSocket connecting...');
+      break;
+    case 'error':
+      console.log('WebSocket error');
+      break;
+  }
+});
+
+// Later, remove the listener
+liveClient.removeConnectionStatusListener(listenerId);
+```
+
+### Method Signatures
+
+```typescript
+onConnectionStatus(
+  listener: (status: SocketStatus) => void
+): string
+
+removeConnectionStatusListener(id: string): void
+
+type SocketStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
+```
+
+## Subscribe to Individual Entries
+
+Listen for events on specific entries by their `entryType` and `id`.
+
+### Add Entry Listener
+
+```typescript
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+// Define a listener
+liveClient.onEntry<Product>('product', 'prod_123', {
+  name: 'productUpdateListener',
+  callback: (event, data) => {
+    switch (event) {
+      case 'update':
+        console.log('Product updated:', data);
+        // Update UI with new data
+        break;
+      case 'delete':
+        console.log('Product deleted');
+        // Remove from UI
+        break;
+      case 'create':
+        console.log('Product created:', data);
+        break;
+    }
+  }
+});
+```
+
+<Info>
+  When you add the first listener for an entry, the client automatically joins the server room for that entry. No manual room management needed!
+</Info>
+
+### Remove Entry Listener
+
+```typescript
+// Remove specific listener by name
+liveClient.removeEntryListener('product', 'prod_123', 'productUpdateListener');
+```
+
+### Leave Entry Room
+
+```typescript
+// Remove all listeners and leave the room
+liveClient.leaveEntry('product', 'prod_123');
+```
+
+<Warning>
+  Calling `leaveEntry` removes all listeners for that entry and stops receiving events. Use `removeEntryListener` to remove individual listeners while keeping others active.
+</Warning>
+
+### Method Signatures
+
+```typescript
+onEntry<T extends Entry = Entry>(
+  entryType: string,
+  id: string,
+  listener: EntryListener<T>
+): void
+
+removeEntryListener(
+  entryType: string,
+  id: string,
+  listenerName: string
+): void
+
+leaveEntry(entryType: string, id: string): void
+
+interface EntryListener<T> {
+  name: string;
+  callback: (event: EntryEvent, data: T | Record<string, unknown>) => void;
+}
+
+type EntryEvent = 'create' | 'update' | 'delete';
+```
+
+## Subscribe to Entry Types
+
+Listen for events across all entries of a specific type.
+
+### Add Entry Type Listener
+
+```typescript
+liveClient.onEntryType<Product>('product', {
+  name: 'allProductsListener',
+  callback: (event, data) => {
+    switch (event) {
+      case 'create':
+        console.log('New product created:', data);
+        // Add to product list in UI
+        break;
+      case 'update':
+        console.log('Product updated:', data);
+        // Update product in list
+        break;
+      case 'delete':
+        console.log('Product deleted:', data);
+        // Remove from product list
+        break;
+    }
+  }
+});
+```
+
+<Info>
+  Entry type listeners receive events for all entries of that type, making them perfect for list views and dashboards.
+</Info>
+
+### Remove Entry Type Listener
+
+```typescript
+// Remove specific listener
+liveClient.removeEntryTypeListener('product', 'allProductsListener');
+
+// Or leave the entire entry type room
+liveClient.leaveEntryType('product');
+```
+
+### Method Signatures
+
+```typescript
+onEntryType<T extends Record<string, any>>(
+  entryType: string,
+  listener: EntryTypeListener<T>
+): void
+
+removeEntryTypeListener(
+  entryType: string,
+  listenerName: string
+): void
+
+leaveEntryType(entryType: string): void
+
+interface EntryTypeListener<T> {
+  name: string;
+  callback: (event: string, data: T | Record<string, unknown>) => void;
+}
+```
+
+## Subscribe to Settings Changes
+
+Monitor changes to application settings in real-time.
+
+```typescript
+liveClient.onSettings('appSettings', {
+  name: 'settingsWatcher',
+  callback: (event, data) => {
+    console.log('Settings changed:', event, data);
+    // Update app configuration
+  }
+});
+
+// Remove listener
+liveClient.removeSettingsListener('appSettings', 'settingsWatcher');
+
+// Or leave settings room
+liveClient.leaveSettings('appSettings');
+```
+
+### Method Signatures
+
+```typescript
+onSettings<L extends SettingsListener>(
+  settings: string,
+  listener: L
+): void
+
+removeSettingsListener(
+  settings: string,
+  listenerName: string
+): void
+
+leaveSettings(settings: string): void
+
+interface SettingsListener {
+  name: string;
+  callback: (event: string, data: Record<string, unknown>) => void;
+}
+```
+
+## Custom Room Management
+
+For advanced use cases, you can manually join and leave custom rooms.
+
+```typescript
+// Join a custom room
+liveClient.joinRoom('custom-room-name');
+
+// Join a global room (available to all users)
+liveClient.joinRoom('announcements', true);
+
+// Leave a room
+liveClient.leaveRoom('custom-room-name');
+```
+
+### Method Signatures
+
+```typescript
+joinRoom(room: string, global?: boolean): void
+leaveRoom(room: string, global?: boolean): void
+```
+
+## Complete Real-Time Dashboard Example
+
+Here's a comprehensive example of a real-time product dashboard:
+
+```typescript
+import { InCloudClient, InLiveClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.yourapp.com');
+const liveClient = new InLiveClient('wss://api.yourapp.com');
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  status: 'active' | 'inactive';
+}
+
+class ProductDashboard {
+  private products: Map<string, Product> = new Map();
+
+  async initialize() {
+    // Get authentication token
+    const session = await client.auth.authCheck();
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    // Load initial data
+    const response = await client.entry.getEntryList<Product>('product');
+    response.rows.forEach(product => {
+      this.products.set(product.id, product);
+    });
+
+    // Start live connection
+    liveClient.start();
+
+    // Monitor connection status
+    liveClient.onConnectionStatus((status) => {
+      console.log('Connection status:', status);
+      this.updateConnectionIndicator(status);
+    });
+
+    // Subscribe to all product changes
+    liveClient.onEntryType<Product>('product', {
+      name: 'dashboardListener',
+      callback: (event, data) => {
+        this.handleProductEvent(event, data as Product);
+      }
+    });
+
+    // Subscribe to specific high-value product
+    liveClient.onEntry<Product>('product', 'premium-prod-001', {
+      name: 'premiumProductListener',
+      callback: (event, data) => {
+        if (event === 'update') {
+          this.notifyAdmins('Premium product updated', data);
+        }
+      }
+    });
+  }
+
+  handleProductEvent(event: string, product: Product) {
+    switch (event) {
+      case 'create':
+        this.products.set(product.id, product);
+        this.renderProduct(product);
+        this.showNotification(`New product: ${product.name}`);
+        break;
+
+      case 'update':
+        this.products.set(product.id, product);
+        this.updateProductInUI(product);
+        break;
+
+      case 'delete':
+        this.products.delete(product.id);
+        this.removeProductFromUI(product.id);
+        this.showNotification(`Product deleted: ${product.name}`);
+        break;
+    }
+  }
+
+  cleanup() {
+    // Clean up when component unmounts
+    liveClient.leaveEntryType('product');
+    liveClient.leaveEntry('product', 'premium-prod-001');
+    liveClient.stop();
+  }
+
+  // UI update methods
+  private renderProduct(product: Product) {
+    console.log('Rendering new product:', product.name);
+    // Update your UI framework here
+  }
+
+  private updateProductInUI(product: Product) {
+    console.log('Updating product in UI:', product.name);
+    // Update your UI framework here
+  }
+
+  private removeProductFromUI(productId: string) {
+    console.log('Removing product from UI:', productId);
+    // Update your UI framework here
+  }
+
+  private updateConnectionIndicator(status: string) {
+    console.log('Connection indicator:', status);
+    // Update connection status in UI
+  }
+
+  private showNotification(message: string) {
+    console.log('Notification:', message);
+    // Show toast/notification in UI
+  }
+
+  private notifyAdmins(title: string, data: any) {
+    console.log('Admin notification:', title, data);
+    // Send notification to admins
+  }
+}
+
+// Usage
+const dashboard = new ProductDashboard();
+await dashboard.initialize();
+
+// Later, when cleaning up
+dashboard.cleanup();
+```
+
+## Event Types Reference
+
+Common events you'll receive from subscriptions:
+
+| Event | Description | Data Included |
+|-------|-------------|---------------|
+| `create` | New entry created | Full entry data |
+| `update` | Entry modified | Updated entry data |
+| `delete` | Entry removed | Entry ID and type |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clean Up Listeners" icon="broom">
+    Always remove listeners and leave rooms when components unmount to prevent memory leaks.
+  </Card>
+  
+  <Card title="Handle Reconnection" icon="arrows-rotate">
+    Monitor connection status and reload data after reconnection to ensure consistency.
+  </Card>
+  
+  <Card title="Use Unique Names" icon="fingerprint">
+    Give each listener a unique name to avoid conflicts when managing multiple subscriptions.
+  </Card>
+  
+  <Card title="Optimize Subscriptions" icon="gauge-high">
+    Only subscribe to the data you need. Use entry-specific listeners for detail views and type listeners for lists.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Not receiving events">
+    1. Verify the WebSocket connection is active using `onConnectionStatus`
+    2. Ensure the listener name is unique and not already registered
+    3. Check that you've called `start()` to begin the connection
+    4. Verify your authentication token is valid
+  </Accordion>
+
+  <Accordion title="Connection keeps dropping">
+    1. Check your network stability
+    2. Verify the WebSocket URL is correct (should use `wss://` for secure connections)
+    3. Monitor the connection status to detect reconnection attempts
+    4. Consider implementing exponential backoff for manual reconnection
+  </Accordion>
+
+  <Accordion title="Memory leaks in React/Vue">
+    Always clean up subscriptions in the component cleanup phase:
+    - React: Use `useEffect` cleanup function
+    - Vue: Use `onUnmounted` hook
+    - Remove all listeners before stopping the connection
+  </Accordion>
+</AccordionGroup>

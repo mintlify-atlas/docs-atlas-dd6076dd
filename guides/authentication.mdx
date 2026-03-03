@@ -1,0 +1,269 @@
+---
+title: Authentication
+description: Manage user authentication with login, logout, registration, and OAuth integration
+---
+
+The Inspatial Cloud Client SDK provides comprehensive authentication methods through the `auth` group, including email/password authentication, Google OAuth, and password reset functionality.
+
+## Login with Email and Password
+
+Authenticate users with their email and password credentials.
+
+<Steps>
+  <Step title="Call the login method">
+    Pass the user's email and password to authenticate:
+
+    ```typescript
+    const sessionData = await client.auth.login(
+      'user@example.com',
+      'securePassword123'
+    );
+    ```
+  </Step>
+
+  <Step title="Handle the session data">
+    On successful login, you'll receive session data containing user information:
+
+    ```typescript
+    console.log(sessionData.userId);      // User's unique ID
+    console.log(sessionData.email);       // User's email
+    console.log(sessionData.firstName);   // User's first name
+    console.log(sessionData.lastName);    // User's last name
+    console.log(sessionData.systemAdmin); // Admin status (boolean)
+    ```
+  </Step>
+</Steps>
+
+### Method Signature
+
+```typescript
+login(email: string, password: string): Promise<SessionData>
+```
+
+## Register New Account
+
+Create a new user account with email and password.
+
+```typescript
+const sessionData = await client.auth.registerAccount({
+  email: 'newuser@example.com',
+  password: 'securePassword123',
+  firstName: 'John',
+  lastName: 'Doe'
+});
+
+// User is automatically logged in after registration
+console.log('Account created for:', sessionData.email);
+```
+
+### Method Signature
+
+```typescript
+registerAccount(info: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}): Promise<SessionData>
+```
+
+## Check Authentication Status
+
+Verify if a user is currently authenticated.
+
+```typescript
+const session = await client.auth.authCheck();
+
+if (session) {
+  console.log('User is authenticated:', session.email);
+} else {
+  console.log('User is not authenticated');
+}
+```
+
+<Info>
+  The `authCheck()` method returns `false` if no user is authenticated, or the `SessionData` object if a valid session exists.
+</Info>
+
+### Method Signature
+
+```typescript
+authCheck(): Promise<SessionData | false>
+```
+
+## Logout
+
+End the current user session.
+
+```typescript
+await client.auth.logout();
+console.log('User logged out successfully');
+```
+
+### Method Signature
+
+```typescript
+logout(): Promise<void>
+```
+
+## Google OAuth Authentication
+
+Authenticate users with their Google account.
+
+### Sign In with Google
+
+```typescript
+// Redirect user to Google OAuth flow
+await client.auth.signInWithGoogle({
+  redirectTo: 'https://yourapp.com/dashboard',
+  csrfToken: 'your-csrf-token' // Optional, stored in localStorage
+});
+```
+
+<Note>
+  The user will be redirected to Google for authentication. After successful authentication, they'll be redirected back to the `redirectTo` URL.
+</Note>
+
+### Sign Up with Google
+
+```typescript
+// Redirect user to Google OAuth flow for registration
+await client.auth.signupWithGoogle({
+  redirectTo: 'https://yourapp.com/welcome',
+  csrfToken: 'your-csrf-token' // Optional
+});
+```
+
+### Method Signatures
+
+```typescript
+signInWithGoogle(options?: {
+  redirectTo?: string;
+  csrfToken?: string;
+}): Promise<void>
+
+signupWithGoogle(options?: {
+  redirectTo?: string;
+  csrfToken?: string;
+}): Promise<void>
+```
+
+## Password Reset
+
+Implement password reset functionality for users who forgot their password.
+
+<Steps>
+  <Step title="Request password reset">
+    Send a password reset email to the user:
+
+    ```typescript
+    const response = await client.auth.resetPassword('user@example.com');
+
+    if (response.type === 'success') {
+      console.log(response.message); // "Password reset email sent"
+    } else {
+      console.error(response.message);
+    }
+    ```
+  </Step>
+
+  <Step title="Set new password">
+    After the user receives the reset token via email, they can set a new password:
+
+    ```typescript
+    const result = await client.auth.setNewPassword({
+      token: 'reset-token-from-email',
+      password: 'newSecurePassword123'
+    });
+
+    if (result.status === 'success') {
+      console.log('Password updated successfully');
+    }
+    ```
+  </Step>
+</Steps>
+
+### Method Signatures
+
+```typescript
+resetPassword(email: string): Promise<{
+  status: number;
+  type: 'success' | 'error';
+  title: string;
+  error: boolean;
+  message: string;
+}>
+
+setNewPassword(args: {
+  token: string;
+  password: string;
+}): Promise<{
+  status: 'success' | 'error';
+}>
+```
+
+## Complete Authentication Flow Example
+
+Here's a complete example showing a typical authentication flow:
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.yourapp.com');
+
+// Check if user is already authenticated
+const existingSession = await client.auth.authCheck();
+
+if (existingSession) {
+  console.log('Welcome back,', existingSession.firstName);
+} else {
+  // User is not authenticated, show login form
+  try {
+    const session = await client.auth.login(
+      'user@example.com',
+      'password123'
+    );
+    console.log('Login successful:', session.email);
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+}
+
+// Later, when user wants to logout
+await client.auth.logout();
+```
+
+## Session Data Type
+
+All authentication methods return a `SessionData` object with the following structure:
+
+```typescript
+interface SessionData {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  systemAdmin: boolean;
+  [key: string]: unknown; // Additional custom fields
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Secure Password Storage" icon="lock">
+    Never store passwords in plain text. Always use the SDK's authentication methods.
+  </Card>
+  
+  <Card title="Check Auth Status" icon="shield-check">
+    Use `authCheck()` on app initialization to restore user sessions.
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Always wrap authentication calls in try-catch blocks for proper error handling.
+  </Card>
+  
+  <Card title="CSRF Protection" icon="shield-halved">
+    Use CSRF tokens with OAuth flows for additional security.
+  </Card>
+</CardGroup>

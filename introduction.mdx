@@ -1,0 +1,81 @@
+---
+title: Introduction
+description: Inspatial Cloud Client SDK - Connect to Inspatial Cloud APIs with TypeScript/JavaScript
+---
+
+# Welcome to Inspatial Cloud Client SDK
+
+The Inspatial Cloud Client SDK provides a powerful TypeScript/JavaScript interface to interact with Inspatial Cloud APIs. Build real-time applications with REST and WebSocket support.
+
+<CardGroup cols={2}>
+  <Card title="REST API Client" icon="cloud" href="#incloudclient">
+    Full-featured HTTP client for CRUD operations, file uploads, and data queries
+  </Card>
+  <Card title="Real-time Client" icon="bolt" href="#inliveclient">
+    WebSocket-based client for live data synchronization and event streaming
+  </Card>
+  <Card title="Type Safety" icon="shield-check">
+    Built with TypeScript for complete type safety and excellent IDE support
+  </Card>
+  <Card title="Utilities" icon="toolbox">
+    MIME type detection, currency helpers, and field type definitions
+  </Card>
+</CardGroup>
+
+## InCloudClient
+
+The REST API client for interacting with Inspatial Cloud backend services.
+
+**Key Features:**
+- Entry management (create, read, update, delete)
+- File upload with progress tracking
+- Authentication handling
+- Settings management
+- ORM-style queries with filters
+- Custom error and notification handling
+
+## InLiveClient
+
+The real-time WebSocket client for live data synchronization.
+
+**Key Features:**
+- Subscribe to entry changes by type and ID
+- Listen to entry type events (create, update, delete)
+- Monitor settings changes
+- Room-based event system
+- Automatic reconnection handling
+- Connection status monitoring
+
+## Getting Started
+
+<Steps>
+  <Step title="Install the SDK">
+    Install the package using your preferred package manager
+    ```bash
+    npm install @inspatial/cloud-client
+    ```
+  </Step>
+  <Step title="Initialize Clients">
+    Set up the REST and/or WebSocket clients
+    ```typescript
+    import { InCloudClient, InLiveClient } from '@inspatial/cloud-client';
+
+    const cloudClient = new InCloudClient('/api');
+    const liveClient = new InLiveClient('wss://your-host.com');
+    ```
+  </Step>
+  <Step title="Start Building">
+    Check out the [Quickstart Guide](/quickstart) for a complete working example
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation instructions for all environments
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running with a working example in minutes
+  </Card>
+</CardGroup>

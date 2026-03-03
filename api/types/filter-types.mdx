@@ -1,0 +1,407 @@
+---
+title: Filter Types
+description: Type definitions for filtering and querying entries in Inspatial Cloud Client SDK
+---
+
+## ListOptions
+
+Options for configuring list queries when retrieving entries.
+
+<ResponseField name="columns" type="Array<string>">
+  Specific field keys to include in the response
+</ResponseField>
+
+<ResponseField name="filter" type="DBFilter">
+  Filter conditions to match entries (AND logic)
+</ResponseField>
+
+<ResponseField name="orFilter" type="DBFilter">
+  Filter conditions using OR logic
+</ResponseField>
+
+<ResponseField name="limit" type="number">
+  Maximum number of entries to return
+</ResponseField>
+
+<ResponseField name="offset" type="number">
+  Number of entries to skip (for pagination)
+</ResponseField>
+
+<ResponseField name="orderBy" type="string">
+  Field key to sort results by
+</ResponseField>
+
+<ResponseField name="order" type="'asc' | 'desc'">
+  Sort direction: ascending or descending
+</ResponseField>
+
+### Example
+
+```typescript
+const options: ListOptions = {
+  columns: ["id", "name", "price", "category"],
+  filter: {
+    inStock: true,
+    price: { op: "lessThan", value: 100 }
+  },
+  orderBy: "createdAt",
+  order: "desc",
+  limit: 20,
+  offset: 0
+};
+
+const products = await cloud.entries.list('product', options);
+```
+
+---
+
+## DBFilter
+
+Filter configuration for querying entries.
+
+```typescript
+type DBFilter =
+  | Array<InFilter>
+  | Record<string, string | number | null | boolean>;
+```
+
+Can be either:
+- An array of `InFilter` objects for complex filtering
+- A simple object for exact matching (key-value pairs)
+
+### Simple Filter Example
+
+```typescript
+// Match entries where status is "published" and featured is true
+const simpleFilter: DBFilter = {
+  status: "published",
+  featured: true
+};
+
+const entries = await cloud.entries.list('article', {
+  filter: simpleFilter
+});
+```
+
+### Complex Filter Example
+
+```typescript
+// Match entries with complex conditions
+const complexFilter: DBFilter = [
+  {
+    field: "price",
+    op: "between",
+    value: [10, 100]
+  },
+  {
+    field: "category",
+    op: "inList",
+    value: ["electronics", "accessories"]
+  }
+];
+
+const entries = await cloud.entries.list('product', {
+  filter: complexFilter
+});
+```
+
+---
+
+## InFilter
+
+Advanced filter with operations, field targeting, and logical operators.
+
+<ResponseField name="field" type="string" required>
+  The field key to filter on
+</ResponseField>
+
+<ResponseField name="op" type="FilterOps">
+  The filter operation to apply
+</ResponseField>
+
+<ResponseField name="value" type="string | number | boolean | Array<string | number> | [string, string] | [number, number]">
+  The value(s) to compare against (required for most operations)
+</ResponseField>
+
+<ResponseField name="caseSensitive" type="boolean">
+  Whether string comparisons should be case-sensitive (for `contains`, `startsWith`, `endsWith` operations)
+</ResponseField>
+
+<ResponseField name="or" type="Array<FilterAll>">
+  Additional filter conditions combined with OR logic
+</ResponseField>
+
+<ResponseField name="and" type="Array<FilterAll>">
+  Additional filter conditions combined with AND logic
+</ResponseField>
+
+### Example
+
+```typescript
+const filter: InFilter = {
+  field: "price",
+  op: "between",
+  value: [50, 150],
+  and: [
+    { op: "notEqual", value: 100 }
+  ]
+};
+
+// Matches entries where price is between 50-150 but not exactly 100
+const entries = await cloud.entries.list('product', { filter: [filter] });
+```
+
+---
+
+## FilterOps
+
+Available filter operations.
+
+```typescript
+type FilterOps =
+  | "="
+  | "equal"
+  | "!="
+  | "notEqual"
+  | "<"
+  | "lessThan"
+  | "<="
+  | "lessThanOrEqual"
+  | ">"
+  | "greaterThan"
+  | ">="
+  | "greaterThanOrEqual"
+  | "between"
+  | "notBetween"
+  | "isEmpty"
+  | "isNotEmpty"
+  | "inList"
+  | "notInList"
+  | "contains"
+  | "notContains"
+  | "startsWith"
+  | "endsWith"
+  | "arrayContains"
+  | "arrayNotContains"
+  | "arrayContainsAny";
+```
+
+### Equality Operations
+
+```typescript
+// Equal
+{ field: "status", op: "=", value: "published" }
+{ field: "status", op: "equal", value: "published" }
+
+// Not equal
+{ field: "status", op: "!=", value: "draft" }
+{ field: "status", op: "notEqual", value: "draft" }
+```
+
+### Comparison Operations
+
+```typescript
+// Less than
+{ field: "price", op: "<", value: 100 }
+{ field: "price", op: "lessThan", value: 100 }
+
+// Less than or equal
+{ field: "price", op: "<=", value: 100 }
+{ field: "price", op: "lessThanOrEqual", value: 100 }
+
+// Greater than
+{ field: "stock", op: ">", value: 0 }
+{ field: "stock", op: "greaterThan", value: 0 }
+
+// Greater than or equal
+{ field: "rating", op: ">=", value: 4 }
+{ field: "rating", op: "greaterThanOrEqual", value: 4 }
+```
+
+### Range Operations
+
+```typescript
+// Between (inclusive)
+{ field: "price", op: "between", value: [10, 100] }
+
+// Not between
+{ field: "quantity", op: "notBetween", value: [5, 10] }
+```
+
+### Empty/Null Operations
+
+```typescript
+// Is empty or null
+{ field: "description", op: "isEmpty" }
+
+// Is not empty and not null
+{ field: "email", op: "isNotEmpty" }
+```
+
+### List Operations
+
+```typescript
+// Value is in list
+{
+  field: "category",
+  op: "inList",
+  value: ["electronics", "computers", "accessories"]
+}
+
+// Value is not in list
+{
+  field: "status",
+  op: "notInList",
+  value: ["deleted", "archived"]
+}
+```
+
+### String Pattern Operations
+
+```typescript
+// Contains substring
+{
+  field: "name",
+  op: "contains",
+  value: "laptop",
+  caseSensitive: false
+}
+
+// Does not contain substring
+{
+  field: "description",
+  op: "notContains",
+  value: "discontinued"
+}
+
+// Starts with prefix
+{
+  field: "sku",
+  op: "startsWith",
+  value: "PRD-"
+}
+
+// Ends with suffix
+{
+  field: "email",
+  op: "endsWith",
+  value: "@example.com"
+}
+```
+
+### Array Operations
+
+```typescript
+// Array contains value
+{
+  field: "tags",
+  op: "arrayContains",
+  value: "featured"
+}
+
+// Array does not contain value
+{
+  field: "tags",
+  op: "arrayNotContains",
+  value: "hidden"
+}
+
+// Array contains any of the values
+{
+  field: "categories",
+  op: "arrayContainsAny",
+  value: ["new", "sale", "clearance"]
+}
+```
+
+---
+
+## Advanced Filtering Examples
+
+### Combining Multiple Conditions
+
+```typescript
+// Products that are in stock AND (price < 100 OR on sale)
+const filter: InFilter = {
+  field: "inStock",
+  op: "equal",
+  value: true,
+  and: [
+    {
+      field: "price",
+      op: "lessThan",
+      value: 100,
+      or: [
+        { field: "onSale", op: "equal", value: true }
+      ]
+    }
+  ]
+};
+```
+
+### Complex Text Search
+
+```typescript
+// Case-insensitive search across multiple fields
+const searchFilters: Array<InFilter> = [
+  {
+    field: "name",
+    op: "contains",
+    value: "laptop",
+    caseSensitive: false,
+    or: [
+      {
+        field: "description",
+        op: "contains",
+        value: "laptop",
+        caseSensitive: false
+      },
+      {
+        field: "brand",
+        op: "contains",
+        value: "laptop",
+        caseSensitive: false
+      }
+    ]
+  }
+];
+
+const results = await cloud.entries.list('product', {
+  filter: searchFilters
+});
+```
+
+### Date Range Filtering
+
+```typescript
+// Entries created in the last 30 days
+const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+const filter: InFilter = {
+  field: "createdAt",
+  op: "greaterThanOrEqual",
+  value: thirtyDaysAgo
+};
+
+const recentEntries = await cloud.entries.list('article', {
+  filter: [filter],
+  orderBy: "createdAt",
+  order: "desc"
+});
+```
+
+### Pagination with Filtering
+
+```typescript
+// Get second page of filtered results
+const options: ListOptions = {
+  filter: { status: "published" },
+  orderBy: "publishedAt",
+  order: "desc",
+  limit: 20,
+  offset: 20  // Skip first 20 results
+};
+
+const page2 = await cloud.entries.list('article', options);
+console.log(`Showing ${page2.rowCount} of ${page2.totalCount} total results`);
+```

@@ -1,0 +1,522 @@
+---
+title: "InLiveClient"
+description: "Real-time client for subscribing to live updates of entries, entry types, and settings"
+---
+
+## Overview
+
+The `InLiveClient` class provides a high-level interface for real-time updates in Inspatial Cloud. It manages WebSocket connections, room subscriptions, and event listeners for entries, entry types, and settings.
+
+## Constructor
+
+### InLiveClient
+
+Creates a new live client instance.
+
+```typescript
+const liveClient = new InLiveClient(host?: string)
+```
+
+<ParamField path="host" type="string" optional>
+  WebSocket host URL. Defaults to the current location with `/ws` path, automatically using `wss://` for HTTPS or `ws://` for HTTP.
+</ParamField>
+
+**Example:**
+```typescript
+import { InLiveClient } from "@inspatial/cloud";
+
+// Use default host (current location)
+const client = new InLiveClient();
+
+// Use custom host
+const client = new InLiveClient("wss://api.inspatial.dev/ws");
+```
+
+---
+
+## Connection Lifecycle
+
+### start
+
+Starts the WebSocket connection to the server.
+
+```typescript
+client.start(authToken?: string): void
+```
+
+<ParamField path="authToken" type="string" optional>
+  Authentication token for the connection. Can also be provided when calling `start()` again.
+</ParamField>
+
+**Example:**
+```typescript
+const client = new InLiveClient();
+client.start("your-auth-token");
+```
+
+### stop
+
+Stops the WebSocket connection to the server.
+
+```typescript
+client.stop(): void
+```
+
+**Example:**
+```typescript
+client.stop();
+```
+
+---
+
+## Entry Listeners
+
+Subscribe to events for specific entry instances.
+
+### onEntry
+
+Adds a listener for a specific entry by type and ID. Automatically joins the entry's room on first listener.
+
+```typescript
+client.onEntry<T extends Entry = Entry, E extends EntryEvent<T> = EntryEvent<T>, L extends EntryListener<T, E> = EntryListener<T, E>>(
+  entryType: string,
+  id: string,
+  listener: L
+): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry (e.g., "Space", "Asset", "User").
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the entry instance.
+</ParamField>
+
+<ParamField path="listener" type="EntryListener" required>
+  Listener object with `name` and `callback` properties.
+</ParamField>
+
+**Example:**
+```typescript
+interface Space {
+  id: string;
+  name: string;
+  description: string;
+}
+
+client.onEntry<Space>(
+  "Space",
+  "space-123",
+  {
+    name: "spaceUpdateListener",
+    callback: (event, data) => {
+      if (event === "update") {
+        console.log("Space updated:", data.name);
+      } else if (event === "delete") {
+        console.log("Space deleted");
+      }
+    }
+  }
+);
+```
+
+### removeEntryListener
+
+Removes a specific entry listener. Automatically leaves the room if it's the last listener.
+
+```typescript
+client.removeEntryListener(
+  entryType: string,
+  id: string,
+  listenerName: string
+): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  The entry ID.
+</ParamField>
+
+<ParamField path="listenerName" type="string" required>
+  The name of the listener to remove.
+</ParamField>
+
+**Example:**
+```typescript
+client.removeEntryListener("Space", "space-123", "spaceUpdateListener");
+```
+
+### leaveEntry
+
+Clears all listeners for a specific entry and leaves its room.
+
+```typescript
+client.leaveEntry(entryType: string, id: string): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  The entry ID.
+</ParamField>
+
+**Example:**
+```typescript
+client.leaveEntry("Space", "space-123");
+```
+
+---
+
+## Entry Type Listeners
+
+Subscribe to events for all entries of a specific type.
+
+### onEntryType
+
+Adds a listener for all entries of a specific type. Receives create, update, and delete events for any entry of this type.
+
+```typescript
+client.onEntryType<T extends Record<string, any>>(
+  entryType: string,
+  listener: EntryTypeListener<T>
+): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to listen to (e.g., "Space", "Asset").
+</ParamField>
+
+<ParamField path="listener" type="EntryTypeListener" required>
+  Listener object with `name` and `callback` properties.
+</ParamField>
+
+**Example:**
+```typescript
+interface Space {
+  id: string;
+  name: string;
+  ownerId: string;
+}
+
+client.onEntryType<Space>(
+  "Space",
+  {
+    name: "allSpacesListener",
+    callback: (event, data) => {
+      switch (event) {
+        case "create":
+          console.log("New space created:", data.name);
+          break;
+        case "update":
+          console.log("Space updated:", data.id);
+          break;
+        case "delete":
+          console.log("Space deleted:", data.id);
+          break;
+      }
+    }
+  }
+);
+```
+
+### removeEntryTypeListener
+
+Removes a listener for an entry type. Automatically leaves the room if it's the last listener.
+
+```typescript
+client.removeEntryTypeListener(entryType: string, listenerName: string): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry.
+</ParamField>
+
+<ParamField path="listenerName" type="string" required>
+  The name of the listener to remove.
+</ParamField>
+
+**Example:**
+```typescript
+client.removeEntryTypeListener("Space", "allSpacesListener");
+```
+
+### leaveEntryType
+
+Clears all listeners for an entry type and leaves its room.
+
+```typescript
+client.leaveEntryType(entryType: string): void
+```
+
+<ParamField path="entryType" type="string" required>
+  The type of entry.
+</ParamField>
+
+**Example:**
+```typescript
+client.leaveEntryType("Space");
+```
+
+---
+
+## Settings Listeners
+
+Subscribe to updates for settings objects.
+
+### onSettings
+
+Adds a listener for specific settings updates.
+
+```typescript
+client.onSettings<L extends SettingsListener>(
+  settings: string,
+  listener: L
+): void
+```
+
+<ParamField path="settings" type="string" required>
+  The settings identifier.
+</ParamField>
+
+<ParamField path="listener" type="SettingsListener" required>
+  Listener object with `name` and `callback` properties.
+</ParamField>
+
+**Example:**
+```typescript
+interface AppSettings {
+  theme: string;
+  language: string;
+  notifications: boolean;
+}
+
+client.onSettings<SettingsListener<AppSettings>>(
+  "app-settings",
+  {
+    name: "appSettingsListener",
+    callback: (event, data) => {
+      if (event === "update") {
+        console.log("Settings updated:", data);
+      }
+    }
+  }
+);
+```
+
+### removeSettingsListener
+
+Removes a settings listener. Automatically leaves the room if it's the last listener.
+
+```typescript
+client.removeSettingsListener(settings: string, listenerName: string): void
+```
+
+<ParamField path="settings" type="string" required>
+  The settings identifier.
+</ParamField>
+
+<ParamField path="listenerName" type="string" required>
+  The name of the listener to remove.
+</ParamField>
+
+**Example:**
+```typescript
+client.removeSettingsListener("app-settings", "appSettingsListener");
+```
+
+### leaveSettings
+
+Clears all settings listeners and leaves its room.
+
+```typescript
+client.leaveSettings(settings: string): void
+```
+
+<ParamField path="settings" type="string" required>
+  The settings identifier.
+</ParamField>
+
+**Example:**
+```typescript
+client.leaveSettings("app-settings");
+```
+
+---
+
+## Connection Status
+
+Monitor the WebSocket connection status.
+
+### onConnectionStatus
+
+Adds a listener for connection status changes.
+
+```typescript
+client.onConnectionStatus(listener: (status: SocketStatus) => void): string
+```
+
+<ParamField path="listener" type="function" required>
+  Callback function that receives status updates: `"open"`, `"closed"`, `"connecting"`, `"error"`, or `"reconnected"`.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Listener ID that can be used to remove the listener later.
+</ResponseField>
+
+**Example:**
+```typescript
+const listenerId = client.onConnectionStatus((status) => {
+  switch (status) {
+    case "open":
+      console.log("Connected to server");
+      break;
+    case "connecting":
+      console.log("Connecting...");
+      break;
+    case "reconnected":
+      console.log("Reconnected after disconnect");
+      break;
+    case "closed":
+      console.log("Disconnected from server");
+      break;
+    case "error":
+      console.error("Connection error");
+      break;
+  }
+});
+```
+
+### removeConnectionStatusListener
+
+Removes a connection status listener.
+
+```typescript
+client.removeConnectionStatusListener(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  The listener ID returned from `onConnectionStatus`.
+</ParamField>
+
+**Example:**
+```typescript
+client.removeConnectionStatusListener(listenerId);
+```
+
+---
+
+## Room Management
+
+Low-level methods for manual room management.
+
+### joinRoom
+
+Manually join a room.
+
+```typescript
+client.joinRoom(room: string, global?: boolean): void
+```
+
+<ParamField path="room" type="string" required>
+  The room name to join.
+</ParamField>
+
+<ParamField path="global" type="boolean" optional>
+  Whether this is a global room.
+</ParamField>
+
+**Example:**
+```typescript
+client.joinRoom("custom-room");
+```
+
+### leaveRoom
+
+Manually leave a room.
+
+```typescript
+client.leaveRoom(room: string, global?: boolean): void
+```
+
+<ParamField path="room" type="string" required>
+  The room name to leave.
+</ParamField>
+
+<ParamField path="global" type="boolean" optional>
+  Whether this is a global room.
+</ParamField>
+
+**Example:**
+```typescript
+client.leaveRoom("custom-room");
+```
+
+---
+
+## Complete Example
+
+```typescript
+import { InLiveClient } from "@inspatial/cloud";
+
+interface Space {
+  id: string;
+  name: string;
+  description: string;
+  ownerId: string;
+}
+
+// Initialize client
+const client = new InLiveClient();
+
+// Monitor connection status
+const statusListenerId = client.onConnectionStatus((status) => {
+  console.log("Connection status:", status);
+});
+
+// Start connection
+client.start("your-auth-token");
+
+// Listen to specific space updates
+client.onEntry<Space>(
+  "Space",
+  "space-123",
+  {
+    name: "spaceListener",
+    callback: (event, data) => {
+      if (event === "update") {
+        console.log("Space updated:", data);
+      } else if (event === "delete") {
+        console.log("Space was deleted");
+      }
+    }
+  }
+);
+
+// Listen to all spaces of this type
+client.onEntryType<Space>(
+  "Space",
+  {
+    name: "allSpaces",
+    callback: (event, data) => {
+      console.log(`Space ${event}:`, data);
+    }
+  }
+);
+
+// Clean up when done
+function cleanup() {
+  client.removeEntryListener("Space", "space-123", "spaceListener");
+  client.leaveEntryType("Space");
+  client.removeConnectionStatusListener(statusListenerId);
+  client.stop();
+}
+
+// Call cleanup when needed
+// cleanup();
+```

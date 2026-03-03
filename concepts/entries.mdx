@@ -1,0 +1,422 @@
+---
+title: Entry System
+description: Understanding entries, entry types, and the data model in Inspatial Cloud
+---
+
+## Overview
+
+The Entry system is the foundation of Inspatial Cloud's data model. Entries are structured data records that represent your application's content, similar to rows in a database or documents in a NoSQL database.
+
+## What is an Entry?
+
+An entry is a typed data object with a unique identifier and metadata. Every entry has:
+
+- **id**: Unique identifier (string or number based on ID mode)
+- **createdAt**: Timestamp of creation
+- **updatedAt**: Timestamp of last modification
+- **Custom fields**: Defined by your entry type schema
+
+```typescript
+import type { Entry } from '@inspatial/cloud-client/types';
+
+interface Post extends Entry {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  title: string;
+  content: string;
+  status: 'draft' | 'published';
+  authorId: string;
+  in__tags?: number[];  // Optional tagging support
+}
+```
+
+## Entry Interface
+
+The base `Entry` interface provides the foundation:
+
+```typescript
+interface Entry {
+  id: IDValue;              // string | number
+  createdAt: number;        // Unix timestamp
+  updatedAt: number;        // Unix timestamp
+  in__tags?: number[];      // Optional tag IDs
+  [key: string]: InValue | undefined;  // Additional fields
+}
+```
+
+## Entry Types
+
+Entry types define the schema and behavior for entries. They are similar to tables in SQL or collections in MongoDB.
+
+### Entry Type Configuration
+
+```typescript
+interface EntryTypeConfig {
+  tableName: string;              // Database table name
+  titleField?: string;            // Field to use as title
+  taggable?: boolean;             // Enable tagging
+  idMode: IDMode;                 // 'auto' | 'manual' | 'uuid'
+  searchFields?: string[];        // Fields for full-text search
+  defaultListFields?: string[];   // Default fields in list views
+}
+```
+
+### Entry Type Structure
+
+```typescript
+interface EntryType {
+  config: EntryTypeConfig;
+  actions: EntryAction[];           // Custom actions
+  defaultListFields: InField[];     // Field definitions
+  statusField?: InField<'ChoicesField'>;   // Status field
+  imageField?: InField<'ImageField'>;      // Primary image field
+  connections: EntryConnection[];   // Related entries
+  permission: Record<string, unknown>;  // Access control
+}
+```
+
+## ID Modes
+
+Entries can use different ID generation strategies:
+
+### Auto-increment (auto)
+
+Numeric IDs automatically assigned by the database:
+
+```typescript
+const entry = await client.entry.createEntry('Post', {
+  title: 'My Post'
+});
+console.log(entry.id); // 1, 2, 3, ...
+```
+
+### Manual (manual)
+
+You provide the ID when creating entries:
+
+```typescript
+const entry = await client.entry.createEntry('Post', {
+  id: 'my-custom-id',
+  title: 'My Post'
+});
+```
+
+### UUID (uuid)
+
+Universally unique identifiers generated automatically:
+
+```typescript
+const entry = await client.entry.createEntry('Post', {
+  title: 'My Post'
+});
+console.log(entry.id); // "550e8400-e29b-41d4-a716-446655440000"
+```
+
+## Entry Operations
+
+### Creating Entries
+
+```typescript
+// Create a new entry
+const post = await client.entry.createEntry('Post', {
+  title: 'Getting Started with Inspatial',
+  content: 'Welcome to our platform...',
+  status: 'draft',
+  authorId: 'user-123'
+});
+
+console.log(post.id);        // Generated ID
+console.log(post.createdAt); // Timestamp
+```
+
+### Reading Entries
+
+```typescript
+// Get a single entry by ID
+const post = await client.entry.getEntry<Post>('Post', '123');
+
+// Get a list of entries
+const { entries, totalCount } = await client.entry.getEntryList<Post>(
+  'Post',
+  {
+    limit: 10,
+    offset: 0,
+    filter: { status: 'published' },
+    sort: { field: 'createdAt', order: 'desc' }
+  }
+);
+
+// Get a new entry template (with default values)
+const template = await client.entry.getNewEntry('Post');
+```
+
+### Updating Entries
+
+```typescript
+// Update an entry
+const updated = await client.entry.updateEntry('Post', '123', {
+  title: 'Updated Title',
+  content: 'Updated content...',
+  status: 'published'
+});
+
+console.log(updated.updatedAt); // New timestamp
+```
+
+### Deleting Entries
+
+```typescript
+const result = await client.entry.deleteEntry('Post', '123');
+console.log(result.deleted); // true
+```
+
+## Entry Actions
+
+Entry types can define custom actions that perform specific operations:
+
+```typescript
+interface EntryAction {
+  key: string;              // Action identifier
+  label?: string;           // Display name
+  description?: string;     // Action description
+  params: InField[];        // Required parameters
+}
+```
+
+### Running Entry Actions
+
+```typescript
+// Run an action immediately
+await client.entry.runEntryAction(
+  'Post',
+  '123',
+  'publish',
+  { scheduledDate: '2024-01-15' },
+  false  // Don't enqueue
+);
+
+// Enqueue action for background processing
+await client.entry.runEntryAction(
+  'Post',
+  '123',
+  'generateThumbnails',
+  { sizes: [100, 200, 400] },
+  true  // Enqueue
+);
+```
+
+## Entry Connections
+
+Entries can reference other entries, creating relationships:
+
+```typescript
+interface EntryConnection {
+  referencingEntry: string;        // Entry type that references
+  referencingEntryLabel: string;   // Display label
+  referencingField: string;        // Field name
+  referencingFieldLabel: string;   // Field label
+  listFields: InField[];           // Fields to display
+}
+```
+
+### Counting Connections
+
+```typescript
+const connections = await client.entry.countConnections('Post', '123');
+
+connections.forEach(conn => {
+  console.log(`${conn.referencingEntry}: ${conn.count} references`);
+});
+```
+
+## Aggregation Operations
+
+### Counting Entries
+
+```typescript
+// Simple count
+const { count } = await client.entry.count('Post', {
+  filter: { status: 'published' }
+});
+
+// Count with grouping
+const grouped = await client.entry.count('Post', {
+  filter: { status: 'published' },
+  groupBy: ['authorId']
+});
+
+// Result: [{ authorId: 'user-1', count: 5 }, ...]
+```
+
+### Summing Fields
+
+```typescript
+// Sum numeric fields
+const totals = await client.entry.sum('Order', {
+  fields: ['total', 'tax', 'shipping'],
+  filter: { status: 'completed' }
+});
+
+console.log(totals.total);    // Sum of all totals
+console.log(totals.tax);      // Sum of all taxes
+
+// Sum with grouping
+const byCustomer = await client.entry.sum('Order', {
+  fields: ['total'],
+  groupBy: ['customerId'],
+  filter: { status: 'completed' }
+});
+
+// Result: [{ customerId: 'user-1', total: 5000 }, ...]
+```
+
+## Tagging System
+
+If an entry type has `taggable: true`, entries can be tagged:
+
+```typescript
+// Create entry with tags
+const post = await client.entry.createEntry('Post', {
+  title: 'Tagged Post',
+  content: 'Content here...',
+  in__tags: [1, 2, 3]  // Tag IDs
+});
+
+// Update tags
+await client.entry.updateEntry('Post', post.id, {
+  in__tags: [1, 2, 3, 4, 5]
+});
+
+// Filter by tags
+const { entries } = await client.entry.getEntryList('Post', {
+  filter: { in__tags: [1, 2] }
+});
+```
+
+## Field Values
+
+Entries can contain various field value types defined by `InValue`:
+
+- Primitive types: string, number, boolean, null
+- Arrays and nested objects
+- Special field types (images, references, etc.)
+
+```typescript
+interface Product extends Entry {
+  name: string;
+  price: number;
+  inStock: boolean;
+  categories: string[];
+  metadata: Record<string, any>;
+  images: ImageFieldValue[];
+  relatedProducts: string[];
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Type Safety" icon="shield">
+    Define TypeScript interfaces for your entries to get full type checking and autocomplete.
+  </Card>
+  <Card title="Validation" icon="check">
+    Use entry type schemas to validate data before sending to the server.
+  </Card>
+  <Card title="Indexing" icon="magnifying-glass">
+    Set `searchFields` for fields you'll frequently search to improve performance.
+  </Card>
+  <Card title="Connections" icon="link">
+    Use entry connections instead of duplicating data to maintain referential integrity.
+  </Card>
+</CardGroup>
+
+## Real-World Example
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+import type { Entry } from '@inspatial/cloud-client/types';
+
+// Define your entry types
+interface Author extends Entry {
+  name: string;
+  email: string;
+  bio: string;
+}
+
+interface Post extends Entry {
+  title: string;
+  content: string;
+  authorId: string;
+  status: 'draft' | 'published';
+  publishedAt?: number;
+  tags: number[];
+}
+
+class BlogManager {
+  constructor(private client: InCloudClient) {}
+
+  async createPost(authorId: string, title: string, content: string) {
+    // Create draft post
+    const post = await this.client.entry.createEntry<Post>('Post', {
+      title,
+      content,
+      authorId,
+      status: 'draft',
+      tags: []
+    });
+
+    return post;
+  }
+
+  async publishPost(postId: string) {
+    // Run publish action
+    await this.client.entry.runEntryAction('Post', postId, 'publish');
+
+    // Update entry
+    return await this.client.entry.updateEntry<Post>('Post', postId, {
+      status: 'published',
+      publishedAt: Date.now()
+    });
+  }
+
+  async getAuthorPosts(authorId: string) {
+    const { entries, totalCount } = await this.client.entry.getEntryList<Post>(
+      'Post',
+      {
+        filter: { authorId, status: 'published' },
+        sort: { field: 'publishedAt', order: 'desc' },
+        limit: 20
+      }
+    );
+
+    return { posts: entries, total: totalCount };
+  }
+
+  async getAuthorStats(authorId: string) {
+    const result = await this.client.entry.count('Post', {
+      filter: { authorId },
+      groupBy: ['status']
+    });
+
+    return result;
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cloud Client" icon="cloud" href="/concepts/cloud-client">
+    Learn about the main API client
+  </Card>
+  <Card title="Live Updates" icon="wifi" href="/concepts/live-client">
+    Subscribe to real-time entry changes
+  </Card>
+  <Card title="Field Types" icon="input" href="/api/types/field-types">
+    Explore available field types
+  </Card>
+  <Card title="Querying Guide" icon="database" href="/guides/filtering-queries">
+    Advanced querying techniques
+  </Card>
+</CardGroup>

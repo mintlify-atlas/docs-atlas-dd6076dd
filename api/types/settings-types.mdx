@@ -1,0 +1,215 @@
+---
+title: Settings Types
+description: Type definitions for settings and settings types in Inspatial Cloud Client SDK
+---
+
+## Settings
+
+A flexible key-value store for application settings.
+
+```typescript
+interface Settings {
+  [key: string]: any;
+}
+```
+
+<ResponseField name="[key: string]" type="any">
+  Settings are stored as key-value pairs where keys are strings and values can be any type
+</ResponseField>
+
+### Example
+
+```typescript
+const settings: Settings = {
+  siteName: "My Application",
+  maxUploadSize: 10485760,
+  enableNotifications: true,
+  theme: {
+    primaryColor: "#007bff",
+    secondaryColor: "#6c757d"
+  }
+};
+```
+
+---
+
+## SettingsType
+
+Defines the schema and configuration for a settings type, including its fields and available actions.
+
+<ResponseField name="name" type="string" required>
+  Unique identifier for the settings type
+</ResponseField>
+
+<ResponseField name="label" type="string" required>
+  Display name for the settings type
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  Description of what these settings control
+</ResponseField>
+
+<ResponseField name="extension" type="string">
+  Extension identifier if this is an extended settings type
+</ResponseField>
+
+<ResponseField name="systemGlobal" type="boolean" required>
+  Whether this settings type is system-wide
+</ResponseField>
+
+<ResponseField name="fields" type="Array<InField>" required>
+  Array of field definitions for the settings
+</ResponseField>
+
+<ResponseField name="titleFields" type="Array<InField>" required>
+  Fields used to generate the settings title
+</ResponseField>
+
+<ResponseField name="displayFields" type="Array<InField>" required>
+  Fields displayed in the settings UI
+</ResponseField>
+
+<ResponseField name="fieldGroups" type="Array<FieldGroup>" required>
+  Groupings of fields for organization in the UI
+</ResponseField>
+
+<ResponseField name="config" type="SettingsTypeConfig" required>
+  Configuration object for this settings type
+</ResponseField>
+
+<Expandable title="SettingsTypeConfig Properties">
+  <ResponseField name="label" type="string" required>
+    Display label for the settings type
+  </ResponseField>
+
+  <ResponseField name="description" type="string" required>
+    Description of the settings type
+  </ResponseField>
+
+  <ResponseField name="extension" type="object">
+    Extension configuration details if applicable
+  </ResponseField>
+</Expandable>
+
+<ResponseField name="actions" type="Array<SettingsAction>" required>
+  Available actions for this settings type
+</ResponseField>
+
+<Expandable title="SettingsAction Properties">
+  <ResponseField name="key" type="string" required>
+    Unique identifier for the action
+  </ResponseField>
+
+  <ResponseField name="label" type="string">
+    Display label for the action
+  </ResponseField>
+
+  <ResponseField name="description" type="string">
+    Description of what the action does
+  </ResponseField>
+
+  <ResponseField name="params" type="Array<InField>" required>
+    Input parameters required for the action
+  </ResponseField>
+</Expandable>
+
+<ResponseField name="permission" type="Record<string, unknown>" required>
+  Permission configuration for this settings type
+</ResponseField>
+
+### Example
+
+```typescript
+const settingsType = await cloud.settings.getSettingsType('appConfig');
+
+console.log(settingsType.label); // "App Configuration"
+console.log(settingsType.fields.length); // 8
+
+// Access specific field
+const siteNameField = settingsType.fields.find(f => f.key === 'siteName');
+console.log(siteNameField?.label); // "Site Name"
+```
+
+---
+
+## SettingsWithTimestamp
+
+Settings data with individual field update timestamps.
+
+<ResponseField name="data" type="S extends Settings" required>
+  The settings data object
+</ResponseField>
+
+<ResponseField name="updatedAt" type="{ [K in keyof S]: number }" required>
+  Object mapping each settings key to its last update timestamp (milliseconds)
+</ResponseField>
+
+### Example
+
+```typescript
+interface AppSettings extends Settings {
+  siteName: string;
+  maxUploadSize: number;
+  enableNotifications: boolean;
+}
+
+const settingsWithTimestamp: SettingsWithTimestamp<AppSettings> = {
+  data: {
+    siteName: "My Application",
+    maxUploadSize: 10485760,
+    enableNotifications: true
+  },
+  updatedAt: {
+    siteName: 1704067200000,
+    maxUploadSize: 1704153600000,
+    enableNotifications: 1704240000000
+  }
+};
+
+// Check when a specific setting was last updated
+const lastUpdated = new Date(settingsWithTimestamp.updatedAt.siteName);
+console.log(`Site name was last updated on ${lastUpdated.toLocaleDateString()}`);
+```
+
+---
+
+## Working with Settings
+
+### Retrieving Settings
+
+```typescript
+// Get all settings for a settings type
+const settings = await cloud.settings.get('appConfig');
+
+console.log(settings.siteName);
+console.log(settings.maxUploadSize);
+```
+
+### Updating Settings
+
+```typescript
+// Update one or more settings
+await cloud.settings.update('appConfig', {
+  siteName: "Updated Application Name",
+  enableNotifications: false
+});
+```
+
+### Type-Safe Settings
+
+```typescript
+// Define your settings interface
+interface EmailSettings extends Settings {
+  smtpHost: string;
+  smtpPort: number;
+  fromEmail: string;
+  enableTLS: boolean;
+}
+
+// Use with type safety
+const emailSettings = await cloud.settings.get<EmailSettings>('emailConfig');
+
+// TypeScript will enforce the correct types
+const host: string = emailSettings.smtpHost;
+const port: number = emailSettings.smtpPort;
+```

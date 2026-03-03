@@ -1,0 +1,333 @@
+---
+title: 'ORMGroup'
+description: 'ORM operations for schema management and migrations'
+---
+
+## Overview
+
+The `ORMGroup` class provides methods for managing your application's data schema, including retrieving entry and settings type definitions, planning and executing migrations, and generating TypeScript interfaces.
+
+Access this group via `client.orm`.
+
+## Methods
+
+### entryTypes
+
+```typescript
+async entryTypes(): Promise<Array<EntryType>>
+```
+
+Retrieves all entry type definitions configured in your application.
+
+<ResponseField name="entryTypes" type="EntryType[]">
+  Array of entry type definitions.
+  
+  <Expandable title="EntryType properties">
+    <ResponseField name="key" type="string">
+      Unique identifier for the entry type.
+    </ResponseField>
+    
+    <ResponseField name="label" type="string">
+      Human-readable label.
+    </ResponseField>
+    
+    <ResponseField name="fields" type="Field[]">
+      Array of field definitions for this entry type.
+    </ResponseField>
+    
+    <ResponseField name="icon" type="string" optional>
+      Icon identifier for UI display.
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" optional>
+      Description of the entry type.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const types = await client.orm.entryTypes();
+
+types.forEach(type => {
+  console.log(`Entry Type: ${type.label} (${type.key})`);
+  console.log(`Fields: ${type.fields.length}`);
+  type.fields.forEach(field => {
+    console.log(`  - ${field.label}: ${field.type}`);
+  });
+});
+```
+
+### settingsTypes
+
+```typescript
+async settingsTypes(): Promise<Array<SettingsType>>
+```
+
+Retrieves all settings type definitions configured in your application.
+
+<ResponseField name="settingsTypes" type="SettingsType[]">
+  Array of settings type definitions.
+  
+  <Expandable title="SettingsType properties">
+    <ResponseField name="key" type="string">
+      Unique identifier for the settings type.
+    </ResponseField>
+    
+    <ResponseField name="label" type="string">
+      Human-readable label.
+    </ResponseField>
+    
+    <ResponseField name="fields" type="Field[]">
+      Array of field definitions for this settings type.
+    </ResponseField>
+    
+    <ResponseField name="icon" type="string" optional>
+      Icon identifier for UI display.
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" optional>
+      Description of the settings type.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const types = await client.orm.settingsTypes();
+
+types.forEach(type => {
+  console.log(`Settings Type: ${type.label} (${type.key})`);
+  type.fields.forEach(field => {
+    console.log(`  - ${field.label}: ${field.type}`);
+  });
+});
+```
+
+### planMigration
+
+```typescript
+async planMigration(): Promise<void>
+```
+
+Analyzes the current schema and creates a migration plan for any pending changes. This does not execute the migration.
+
+<Info>
+Always run `planMigration()` before `migrate()` to preview changes that will be made to the database.
+</Info>
+
+#### Example
+
+```typescript
+// Plan the migration to see what changes will be made
+await client.orm.planMigration();
+console.log('Migration plan created. Review the changes before migrating.');
+```
+
+### migrate
+
+```typescript
+async migrate(): Promise<void>
+```
+
+Executes the migration to apply pending schema changes to the database.
+
+<Warning>
+This operation modifies your database schema. Always run `planMigration()` first and review the changes before executing.
+</Warning>
+
+#### Example
+
+```typescript
+try {
+  // First, plan the migration
+  await client.orm.planMigration();
+  
+  // Review the plan, then execute
+  await client.orm.migrate();
+  console.log('Migration completed successfully');
+} catch (error) {
+  console.error('Migration failed:', error);
+}
+```
+
+### generateInterfaces
+
+```typescript
+async generateInterfaces(): Promise<void>
+```
+
+Generates TypeScript interfaces based on your entry and settings type definitions. This creates type-safe interfaces for use in your TypeScript application.
+
+#### Example
+
+```typescript
+await client.orm.generateInterfaces();
+console.log('TypeScript interfaces generated');
+```
+
+## Common Workflows
+
+### Complete Schema Update Workflow
+
+```typescript
+async function updateSchema() {
+  try {
+    console.log('Step 1: Planning migration...');
+    await client.orm.planMigration();
+    
+    console.log('Step 2: Executing migration...');
+    await client.orm.migrate();
+    
+    console.log('Step 3: Generating TypeScript interfaces...');
+    await client.orm.generateInterfaces();
+    
+    console.log('Schema update complete!');
+  } catch (error) {
+    console.error('Schema update failed:', error);
+    throw error;
+  }
+}
+```
+
+### Introspecting Schema for Dynamic UI
+
+```typescript
+async function buildDynamicForm(entryTypeKey: string) {
+  // Get all entry types
+  const types = await client.orm.entryTypes();
+  
+  // Find the specific type
+  const entryType = types.find(t => t.key === entryTypeKey);
+  
+  if (!entryType) {
+    throw new Error(`Entry type ${entryTypeKey} not found`);
+  }
+  
+  // Build form fields dynamically
+  const formFields = entryType.fields.map(field => ({
+    name: field.key,
+    label: field.label,
+    type: field.type,
+    required: field.required,
+    defaultValue: field.defaultValue
+  }));
+  
+  return formFields;
+}
+```
+
+### Validating Entry Type Exists
+
+```typescript
+async function validateEntryType(entryTypeKey: string): Promise<boolean> {
+  const types = await client.orm.entryTypes();
+  return types.some(t => t.key === entryTypeKey);
+}
+
+// Usage
+if (await validateEntryType('product')) {
+  console.log('Product entry type exists');
+} else {
+  console.error('Product entry type not found');
+}
+```
+
+### Comparing Settings Types
+
+```typescript
+async function listAllSettings() {
+  const types = await client.orm.settingsTypes();
+  
+  console.log('Available Settings Types:');
+  types.forEach(type => {
+    console.log(`\n${type.label} (${type.key})`);
+    if (type.description) {
+      console.log(`  ${type.description}`);
+    }
+    console.log('  Fields:');
+    type.fields.forEach(field => {
+      const required = field.required ? ' (required)' : '';
+      console.log(`    - ${field.label} (${field.type})${required}`);
+    });
+  });
+}
+```
+
+## Types
+
+### EntryType
+
+```typescript
+interface EntryType {
+  key: string;
+  label: string;
+  fields: Field[];
+  icon?: string;
+  description?: string;
+}
+```
+
+### SettingsType
+
+```typescript
+interface SettingsType {
+  key: string;
+  label: string;
+  fields: Field[];
+  icon?: string;
+  description?: string;
+}
+```
+
+### Field
+
+```typescript
+interface Field {
+  key: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  defaultValue?: unknown;
+  // Additional field-specific properties
+}
+```
+
+## Migration Best Practices
+
+1. **Always Plan First**: Run `planMigration()` before `migrate()` to review changes.
+
+2. **Backup Your Database**: Before running migrations in production, ensure you have a recent backup.
+
+3. **Test Migrations**: Test your migrations in a development or staging environment first.
+
+4. **Version Control**: Keep your schema definitions in version control alongside your code.
+
+5. **Generate Interfaces After Migration**: Always run `generateInterfaces()` after a successful migration to keep your TypeScript types in sync.
+
+6. **Error Handling**: Implement proper error handling for migration operations:
+
+```typescript
+async function safeMigrate() {
+  try {
+    await client.orm.planMigration();
+    
+    // Give user a chance to review
+    const confirmed = await confirmMigration();
+    if (!confirmed) {
+      console.log('Migration cancelled');
+      return;
+    }
+    
+    await client.orm.migrate();
+    await client.orm.generateInterfaces();
+    
+    console.log('Migration successful');
+  } catch (error) {
+    console.error('Migration failed:', error);
+    // Implement rollback or recovery logic
+  }
+}
+```

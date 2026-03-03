@@ -1,0 +1,438 @@
+---
+title: File Upload with Optimization
+description: Upload files with progress tracking, image optimization, and public/private access control
+---
+
+The Inspatial Cloud Client SDK provides a powerful file upload system through the `uploadFile` method, supporting progress tracking, automatic image optimization, and flexible access control.
+
+## Basic File Upload
+
+Upload a file with minimal configuration.
+
+<Steps>
+  <Step title="Get the file from user input">
+    Obtain a `File` object from an input element or file picker:
+
+    ```typescript
+    const fileInput = document.querySelector<HTMLInputElement>('#file-input');
+    const file = fileInput.files?.[0];
+    
+    if (!file) {
+      console.error('No file selected');
+      return;
+    }
+    ```
+  </Step>
+
+  <Step title="Upload the file">
+    Call `uploadFile` with the file and filename:
+
+    ```typescript
+    client.uploadFile({
+      fileName: 'document.pdf',
+      file: file,
+      completeCallback: (uploadedFile) => {
+        console.log('Upload complete!');
+        console.log('File ID:', uploadedFile.id);
+      }
+    });
+    ```
+  </Step>
+</Steps>
+
+## Upload with Progress Tracking
+
+Monitor upload progress to provide feedback to users.
+
+```typescript
+client.uploadFile({
+  fileName: 'large-video.mp4',
+  file: file,
+  progressCallback: (progress) => {
+    if (progress.lengthComputable) {
+      const percentComplete = (progress.loaded / progress.total) * 100;
+      console.log(`Upload progress: ${percentComplete.toFixed(2)}%`);
+      
+      // Update progress bar in UI
+      updateProgressBar(percentComplete);
+    }
+  },
+  completeCallback: (uploadedFile) => {
+    console.log('Upload finished:', uploadedFile.id);
+    showSuccessMessage('File uploaded successfully!');
+  }
+});
+```
+
+## Image Upload with Optimization
+
+Automatically optimize images during upload to reduce file size and dimensions.
+
+### Resize to Maximum Width
+
+```typescript
+client.uploadFile({
+  fileName: 'photo.jpg',
+  file: imageFile,
+  optimize: {
+    width: 1920 // Max width in pixels
+  },
+  completeCallback: (uploadedFile) => {
+    console.log('Optimized image uploaded:', uploadedFile.id);
+  }
+});
+```
+
+### Resize to Maximum Height
+
+```typescript
+client.uploadFile({
+  fileName: 'portrait.jpg',
+  file: imageFile,
+  optimize: {
+    height: 1080 // Max height in pixels
+  }
+});
+```
+
+### Resize with Both Dimensions
+
+```typescript
+client.uploadFile({
+  fileName: 'thumbnail.jpg',
+  file: imageFile,
+  optimize: {
+    width: 300,
+    height: 300 // Maintains aspect ratio within these bounds
+  },
+  completeCallback: (uploadedFile) => {
+    console.log('Thumbnail created:', uploadedFile.id);
+  }
+});
+```
+
+<Info>
+  Image optimization maintains aspect ratio. If you specify both width and height, the image will be scaled to fit within those dimensions while preserving its original proportions.
+</Info>
+
+## Public vs Private Files
+
+Control file access with public and private settings.
+
+### Upload Public File
+
+```typescript
+// Public files are accessible without authentication
+client.uploadFile({
+  fileName: 'company-logo.png',
+  file: file,
+  publicFile: true, // Anyone can access this file
+  completeCallback: (uploadedFile) => {
+    console.log('Public file URL:', uploadedFile.url);
+    // Use this URL directly in <img> tags or share publicly
+  }
+});
+```
+
+### Upload Private File
+
+```typescript
+// Private files require authentication to access
+client.uploadFile({
+  fileName: 'confidential-report.pdf',
+  file: file,
+  publicFile: false, // Default: requires authentication
+  completeCallback: (uploadedFile) => {
+    console.log('Private file uploaded:', uploadedFile.id);
+    // File requires user authentication to access
+  }
+});
+```
+
+## Global vs User-Scoped Files
+
+Determine file visibility scope across your application.
+
+```typescript
+// User-scoped file (default)
+client.uploadFile({
+  fileName: 'user-avatar.jpg',
+  file: file,
+  global: false, // Only accessible by the uploading user
+  completeCallback: (uploadedFile) => {
+    console.log('User file uploaded:', uploadedFile.id);
+  }
+});
+
+// Global file
+client.uploadFile({
+  fileName: 'shared-resource.pdf',
+  file: file,
+  global: true, // Accessible by all authenticated users
+  completeCallback: (uploadedFile) => {
+    console.log('Global file uploaded:', uploadedFile.id);
+  }
+});
+```
+
+<Warning>
+  Be careful when uploading files as global. Ensure the file content is appropriate for all users in your application.
+</Warning>
+
+## Error Handling
+
+Handle upload errors gracefully.
+
+```typescript
+client.uploadFile({
+  fileName: 'document.docx',
+  file: file,
+  progressCallback: (progress) => {
+    const percent = (progress.loaded / progress.total) * 100;
+    updateProgressBar(percent);
+  },
+  completeCallback: (uploadedFile) => {
+    hideProgressBar();
+    showSuccessMessage('Upload successful!');
+    console.log('File ID:', uploadedFile.id);
+  },
+  errorCallback: (error) => {
+    hideProgressBar();
+    showErrorMessage('Upload failed. Please try again.');
+    console.error('Upload error:', error);
+  },
+  abortCallback: () => {
+    hideProgressBar();
+    showInfoMessage('Upload cancelled.');
+    console.log('Upload aborted by user');
+  }
+});
+```
+
+## Complete Upload Component Example
+
+Here's a complete example with progress tracking and optimization:
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient('https://api.yourapp.com');
+
+class FileUploader {
+  private progressBar: HTMLProgressElement;
+  private statusText: HTMLSpanElement;
+
+  constructor() {
+    this.progressBar = document.querySelector('#upload-progress')!;
+    this.statusText = document.querySelector('#upload-status')!;
+  }
+
+  async uploadImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('Please select an image file'));
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        reject(new Error('File size must be less than 10MB'));
+        return;
+      }
+
+      this.statusText.textContent = 'Uploading...';
+      this.progressBar.style.display = 'block';
+
+      client.uploadFile({
+        fileName: file.name,
+        file: file,
+        publicFile: true,
+        optimize: {
+          width: 1920,
+          height: 1080
+        },
+        progressCallback: (progress) => {
+          if (progress.lengthComputable) {
+            const percent = (progress.loaded / progress.total) * 100;
+            this.progressBar.value = percent;
+            this.statusText.textContent = `Uploading... ${percent.toFixed(0)}%`;
+          }
+        },
+        completeCallback: (uploadedFile) => {
+          this.progressBar.style.display = 'none';
+          this.statusText.textContent = 'Upload complete!';
+          console.log('File uploaded successfully:', uploadedFile);
+          resolve(uploadedFile.id);
+        },
+        errorCallback: (error) => {
+          this.progressBar.style.display = 'none';
+          this.statusText.textContent = 'Upload failed';
+          console.error('Upload error:', error);
+          reject(new Error('Upload failed'));
+        },
+        abortCallback: () => {
+          this.progressBar.style.display = 'none';
+          this.statusText.textContent = 'Upload cancelled';
+          reject(new Error('Upload cancelled'));
+        }
+      });
+    });
+  }
+
+  async uploadDocument(file: File, isPublic: boolean = false): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.statusText.textContent = 'Uploading document...';
+
+      client.uploadFile({
+        fileName: file.name,
+        file: file,
+        publicFile: isPublic,
+        global: false,
+        progressCallback: (progress) => {
+          if (progress.lengthComputable) {
+            const percent = (progress.loaded / progress.total) * 100;
+            this.statusText.textContent = 
+              `Uploading... ${this.formatBytes(progress.loaded)} / ${this.formatBytes(progress.total)}`;
+          }
+        },
+        completeCallback: (uploadedFile) => {
+          this.statusText.textContent = 'Document uploaded!';
+          resolve(uploadedFile.id);
+        },
+        errorCallback: (error) => {
+          this.statusText.textContent = 'Upload failed';
+          reject(error);
+        }
+      });
+    });
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+}
+
+// Usage
+const uploader = new FileUploader();
+
+// Handle file input
+const fileInput = document.querySelector<HTMLInputElement>('#file-input')!;
+fileInput.addEventListener('change', async (e) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    try {
+      if (file.type.startsWith('image/')) {
+        const fileId = await uploader.uploadImage(file);
+        console.log('Image uploaded with ID:', fileId);
+      } else {
+        const fileId = await uploader.uploadDocument(file, false);
+        console.log('Document uploaded with ID:', fileId);
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
+  }
+});
+```
+
+## Method Signature
+
+```typescript
+uploadFile(options: {
+  fileName: string;
+  file: File;
+  global?: boolean;
+  publicFile?: boolean;
+  optimize?: {
+    width?: number;
+    height?: number;
+  };
+  progressCallback?: (progress: ProgressEvent, uid?: string) => void;
+  completeCallback?: (file: Entry) => void;
+  errorCallback?: (response: unknown, uid?: string) => void;
+  abortCallback?: (response: unknown, uid?: string) => void;
+}): void
+```
+
+## Upload Options Reference
+
+| Option | Type | Description | Default |
+|--------|------|-------------|--------|
+| `fileName` | `string` | Name to save the file as | Required |
+| `file` | `File` | The file object to upload | Required |
+| `global` | `boolean` | Make file accessible to all authenticated users | `false` |
+| `publicFile` | `boolean` | Make file publicly accessible without authentication | `false` |
+| `optimize.width` | `number` | Maximum width for image optimization (pixels) | - |
+| `optimize.height` | `number` | Maximum height for image optimization (pixels) | - |
+| `progressCallback` | `function` | Called with progress updates during upload | - |
+| `completeCallback` | `function` | Called when upload completes successfully | - |
+| `errorCallback` | `function` | Called if upload fails | - |
+| `abortCallback` | `function` | Called if upload is aborted | - |
+
+## Accessing Uploaded Files
+
+After uploading, you can access file URLs through the client.
+
+```typescript
+const fileUrl = `${client.filesEndpoint}${uploadedFile.id}`;
+
+// Use in an image tag
+const img = document.createElement('img');
+img.src = fileUrl;
+
+// Or download link
+const link = document.createElement('a');
+link.href = fileUrl;
+link.download = uploadedFile.fileName;
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Before Upload" icon="shield-check">
+    Always validate file type and size on the client side before uploading to save bandwidth and improve UX.
+  </Card>
+  
+  <Card title="Show Progress" icon="chart-line">
+    Use progress callbacks to keep users informed during long uploads.
+  </Card>
+  
+  <Card title="Optimize Images" icon="image">
+    Use image optimization to reduce file sizes and improve load times across your application.
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Always implement error and abort callbacks to handle network issues gracefully.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Upload fails immediately">
+    1. Check that the user is authenticated if uploading private files
+    2. Verify the file size is within server limits
+    3. Ensure the file type is allowed by your server configuration
+    4. Check browser console for CORS or network errors
+  </Accordion>
+
+  <Accordion title="Progress callback not firing">
+    The progress callback requires that the server sends appropriate headers. If progress isn't updating:
+    1. Verify your server supports progress events
+    2. Check that Content-Length header is being sent
+    3. Ensure the upload is large enough to generate progress events
+  </Accordion>
+
+  <Accordion title="Image optimization not working">
+    1. Verify the file is actually an image (JPEG, PNG, GIF, WebP)
+    2. Check server logs for image processing errors
+    3. Ensure image optimization is enabled on your server
+    4. Try with a smaller image first to isolate the issue
+  </Accordion>
+</AccordionGroup>

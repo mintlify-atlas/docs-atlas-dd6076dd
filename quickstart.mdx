@@ -1,80 +1,318 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with Inspatial Cloud Client SDK in minutes
 ---
 
-## Get started in three steps
+# Quickstart Guide
 
-Get your documentation site running locally and make your first customization.
+Get up and running with the Inspatial Cloud Client SDK in minutes. This guide shows you how to initialize clients, fetch data, and listen to real-time updates.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- Node.js 16+ or Deno 1.30+
+- An Inspatial Cloud backend instance
+- API endpoint URL
+
+## Initialize the REST Client
+
+Create an instance of `InCloudClient` to interact with your backend APIs:
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+// Initialize with your API endpoint
+const client = new InCloudClient('/api');
+
+// Or with a full URL for remote servers
+const remoteClient = new InCloudClient('https://your-domain.com/api');
+```
+
+### Custom Notifications and Redirects
+
+Handle API notifications and redirects with custom callbacks:
+
+```typescript
+const client = new InCloudClient('/api', {
+  onNotify: (info) => {
+    // Custom notification handler
+    console.log(`[${info.type}] ${info.title}: ${info.message}`);
+    // Integrate with your UI toast/notification system
+  },
+  onRedirect: (url, response) => {
+    // Custom redirect handler
+    window.location.href = url;
+  }
+});
+```
+
+## Fetch and Create Entries
+
+Work with entries using the `entry` group methods:
+
+<Steps>
+  <Step title="Fetch a Single Entry">
+    ```typescript
+    const product = await client.entry.getEntry('Product', '123');
+    console.log(product.id, product.createdAt);
+    ```
+  </Step>
+  
+  <Step title="Fetch a List of Entries">
+    ```typescript
+    const response = await client.entry.getEntryList('Product', {
+      limit: 10,
+      offset: 0,
+      filter: {
+        status: 'active'
+      }
+    });
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    console.log(`Found ${response.total} products`);
+    response.list.forEach(product => {
+      console.log(product.id);
+    });
+    ```
+  </Step>
+  
+  <Step title="Create a New Entry">
+    ```typescript
+    const newProduct = await client.entry.createEntry('Product', {
+      name: 'Gaming Laptop',
+      price: 1299.99,
+      status: 'active'
+    });
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    console.log('Created product:', newProduct.id);
+    ```
+  </Step>
+  
+  <Step title="Update an Entry">
+    ```typescript
+    const updated = await client.entry.updateEntry(
+      'Product',
+      '123',
+      { price: 1199.99 }
+    );
+    ```
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+## Upload Files
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+Upload files with progress tracking:
+
+```typescript
+const fileInput = document.querySelector('input[type="file"]');
+const file = fileInput.files[0];
+
+client.uploadFile({
+  fileName: file.name,
+  file: file,
+  publicFile: true,
+  optimize: {
+    width: 1200,
+    height: 800
+  },
+  progressCallback: (progress) => {
+    const percent = (progress.loaded / progress.total) * 100;
+    console.log(`Upload progress: ${percent.toFixed(0)}%`);
+  },
+  completeCallback: (uploadedFile) => {
+    console.log('File uploaded:', uploadedFile.id);
+    // Access file URL: client.filesEndpoint + uploadedFile.id
+  },
+  errorCallback: (error) => {
+    console.error('Upload failed:', error);
+  }
+});
+```
+
+## Real-time Updates with InLiveClient
+
+Listen to live changes using WebSocket connections:
+
+<Steps>
+  <Step title="Initialize and Connect">
+    ```typescript
+    import { InLiveClient } from '@inspatial/cloud-client';
+
+    const liveClient = new InLiveClient('wss://your-domain.com');
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    // Start the connection
+    liveClient.start();
+    ```
+  </Step>
+  
+  <Step title="Monitor Connection Status">
+    ```typescript
+    liveClient.onConnectionStatus((status) => {
+      console.log('Connection status:', status);
+      // status: 'connected' | 'disconnected' | 'connecting'
+    });
+    ```
+  </Step>
+  
+  <Step title="Listen to Entry Changes">
+    ```typescript
+    // Subscribe to a specific entry
+    liveClient.onEntry('Product', '123', {
+      name: 'product-listener',
+      callback: (event, data) => {
+        console.log(`Product ${event}:`, data);
+        // Events: 'updated', 'deleted', 'field_changed'
+      }
+    });
+    ```
+  </Step>
+  
+  <Step title="Listen to Entry Type Events">
+    ```typescript
+    // Subscribe to all products
+    liveClient.onEntryType('Product', {
+      name: 'all-products',
+      callback: (event, data) => {
+        if (event === 'created') {
+          console.log('New product created:', data);
+        }
+      }
+    });
+    ```
+  </Step>
+  
+  <Step title="Clean Up">
+    ```typescript
+    // Remove specific listener
+    liveClient.removeEntryListener('Product', '123', 'product-listener');
+    
+    // Leave all listeners for an entry
+    liveClient.leaveEntry('Product', '123');
+    
+    // Disconnect when done
+    liveClient.stop();
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Query and Aggregate Data
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Perform advanced queries with filtering and aggregation:
 
-### Step 3: Go live
+```typescript
+// Count entries with grouping
+const stats = await client.entry.count('Order', {
+  groupBy: ['status'],
+  filter: {
+    createdAt: { $gte: Date.now() - 86400000 } // Last 24 hours
+  }
+});
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+// [{ status: 'pending', count: 15 }, { status: 'completed', count: 42 }]
 
-## Next steps
+// Sum numeric fields
+const revenue = await client.entry.sum('Order', {
+  fields: ['total', 'tax'],
+  filter: { status: 'completed' }
+});
 
-Now that you have your docs running, explore these key features:
+console.log(`Total revenue: $${revenue.total}`);
+```
 
-<CardGroup cols={2}>
+## Check Server Connection
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+Verify your backend is reachable:
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+```typescript
+const isOnline = await client.ping();
+if (isOnline) {
+  console.log('Connected to Inspatial Cloud');
+} else {
+  console.error('Unable to reach backend');
+}
+```
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+## Using MIME Type Utilities
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+The SDK includes built-in MIME type detection:
 
-</CardGroup>
+```typescript
+import { MimeTypes } from '@inspatial/cloud-client';
+
+// Get MIME type from file name
+const mimeType = MimeTypes.getMimeTypeByFileName('document.pdf');
+// 'application/pdf'
+
+// Get by extension
+const type = MimeTypes.getMimeTypeByExtension('png');
+// 'image/png'
+
+// Get category
+const category = MimeTypes.getCategory('mp4');
+// 'video'
+
+// Get all extensions in a category
+const imageExts = MimeTypes.getExtensionsByCategory('image');
+```
+
+## Complete Example
+
+Here's a complete working example combining REST and real-time clients:
+
+```typescript
+import { InCloudClient, InLiveClient } from '@inspatial/cloud-client';
+
+// Initialize clients
+const client = new InCloudClient('/api');
+const liveClient = new InLiveClient('ws://localhost:8080');
+
+// Start live connection
+liveClient.start();
+
+// Fetch initial data
+const products = await client.entry.getEntryList('Product', {
+  limit: 20,
+  filter: { status: 'active' }
+});
+
+console.log(`Loaded ${products.list.length} products`);
+
+// Listen for new products
+liveClient.onEntryType('Product', {
+  name: 'product-updates',
+  callback: (event, data) => {
+    if (event === 'created') {
+      console.log('New product added:', data);
+      // Update your UI with the new product
+    }
+  }
+});
+
+// Create a new product
+const newProduct = await client.entry.createEntry('Product', {
+  name: 'Wireless Mouse',
+  price: 29.99,
+  status: 'active'
+});
+
+// The live listener above will be triggered automatically
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The real-time client automatically manages room subscriptions. When you add listeners, it joins the appropriate rooms, and when all listeners are removed, it leaves the room to optimize bandwidth.
 </Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api/cloud-client">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Entry Management" icon="database" href="/guides/entries-crud">
+    Learn more about working with entries
+  </Card>
+  <Card title="Real-time Events" icon="bolt" href="/guides/real-time-events">
+    Deep dive into real-time event handling
+  </Card>
+  <Card title="File Uploads" icon="upload" href="/guides/file-uploads">
+    Advanced file upload techniques
+  </Card>
+</CardGroup>

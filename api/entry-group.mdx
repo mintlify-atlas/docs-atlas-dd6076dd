@@ -1,0 +1,545 @@
+---
+title: 'EntryGroup'
+description: 'CRUD operations for entries with filtering, aggregation, and custom actions'
+---
+
+## Overview
+
+The `EntryGroup` class provides comprehensive methods for managing entries (data records) in your Inspatial Cloud application. This includes creating, reading, updating, deleting entries, as well as advanced operations like filtering, counting, summing, and running custom actions.
+
+Access this group via `client.entry`.
+
+## Methods
+
+### getEntry
+
+```typescript
+async getEntry<T = Entry>(entryType: string, id: string): Promise<T>
+```
+
+Retrieves a single entry by its type and ID.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to retrieve (e.g., "product", "user").
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the entry.
+</ParamField>
+
+<ResponseField name="entry" type="T">
+  The entry data with all its fields.
+</ResponseField>
+
+#### Example
+
+```typescript
+const product = await client.entry.getEntry('product', '123');
+console.log('Product name:', product.name);
+```
+
+### getEntryList
+
+```typescript
+async getEntryList<T = Record<string, InValue>>(
+  entryType: string,
+  options?: ListOptions
+): Promise<GetListResponse<T>>
+```
+
+Retrieves a list of entries with optional filtering, sorting, and pagination.
+
+<ParamField path="entryType" type="string" required>
+  The type of entries to retrieve.
+</ParamField>
+
+<ParamField path="options" type="ListOptions" optional>
+  Query options for filtering and pagination.
+  
+  <Expandable title="properties">
+    <ParamField path="columns" type="string[]" optional>
+      Specific columns/fields to retrieve.
+    </ParamField>
+    
+    <ParamField path="filter" type="DBFilter" optional>
+      Filter conditions (AND logic).
+    </ParamField>
+    
+    <ParamField path="orFilter" type="DBFilter" optional>
+      Filter conditions (OR logic).
+    </ParamField>
+    
+    <ParamField path="limit" type="number" optional>
+      Maximum number of entries to return.
+    </ParamField>
+    
+    <ParamField path="offset" type="number" optional>
+      Number of entries to skip (for pagination).
+    </ParamField>
+    
+    <ParamField path="orderBy" type="string" optional>
+      Field to sort by.
+    </ParamField>
+    
+    <ParamField path="order" type="'asc' | 'desc'" optional>
+      Sort direction.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="response" type="GetListResponse<T>">
+  <Expandable title="properties">
+    <ResponseField name="rows" type="T[]">
+      Array of entry records.
+    </ResponseField>
+    
+    <ResponseField name="rowCount" type="number">
+      Number of rows returned in this response.
+    </ResponseField>
+    
+    <ResponseField name="totalCount" type="number">
+      Total number of entries matching the filter.
+    </ResponseField>
+    
+    <ResponseField name="columns" type="string[]">
+      List of column names included in the response.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+// Get first 10 active products sorted by name
+const result = await client.entry.getEntryList('product', {
+  filter: { status: 'active' },
+  limit: 10,
+  offset: 0,
+  orderBy: 'name',
+  order: 'asc'
+});
+
+console.log(`Showing ${result.rowCount} of ${result.totalCount} products`);
+result.rows.forEach(product => {
+  console.log(product.name);
+});
+```
+
+### getNewEntry
+
+```typescript
+async getNewEntry<T = Record<string, InValue>>(entryType: string): Promise<T>
+```
+
+Retrieves a new entry template with default values for the specified entry type.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to create a template for.
+</ParamField>
+
+<ResponseField name="entry" type="T">
+  New entry object with default field values.
+</ResponseField>
+
+#### Example
+
+```typescript
+const newProduct = await client.entry.getNewEntry('product');
+console.log('Default values:', newProduct);
+```
+
+### createEntry
+
+```typescript
+async createEntry<T = Entry>(
+  entryType: string,
+  entry: Record<string, InValue>
+): Promise<T>
+```
+
+Creates a new entry.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to create.
+</ParamField>
+
+<ParamField path="entry" type="Record<string, InValue>" required>
+  The entry data to create.
+</ParamField>
+
+<ResponseField name="entry" type="T">
+  The created entry with generated ID and any server-set fields.
+</ResponseField>
+
+#### Example
+
+```typescript
+const newProduct = await client.entry.createEntry('product', {
+  name: 'New Product',
+  price: 29.99,
+  description: 'A great product',
+  status: 'active'
+});
+
+console.log('Created product with ID:', newProduct.id);
+```
+
+### updateEntry
+
+```typescript
+async updateEntry<T = Record<string, InValue>>(
+  entryType: string,
+  id: IDValue,
+  entry: T
+): Promise<T>
+```
+
+Updates an existing entry.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to update.
+</ParamField>
+
+<ParamField path="id" type="string | number" required>
+  The ID of the entry to update.
+</ParamField>
+
+<ParamField path="entry" type="T" required>
+  The updated entry data.
+</ParamField>
+
+<ResponseField name="entry" type="T">
+  The updated entry data.
+</ResponseField>
+
+#### Example
+
+```typescript
+const updated = await client.entry.updateEntry('product', '123', {
+  price: 24.99,
+  status: 'on_sale'
+});
+
+console.log('Updated product:', updated);
+```
+
+### deleteEntry
+
+```typescript
+async deleteEntry(
+  entryType: string,
+  id: IDValue
+): Promise<{ deleted: boolean; entryType: string; id: string }>
+```
+
+Deletes an entry.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry to delete.
+</ParamField>
+
+<ParamField path="id" type="string | number" required>
+  The ID of the entry to delete.
+</ParamField>
+
+<ResponseField name="response" type="object">
+  <Expandable title="properties">
+    <ResponseField name="deleted" type="boolean">
+      Whether the deletion was successful.
+    </ResponseField>
+    
+    <ResponseField name="entryType" type="string">
+      The type of the deleted entry.
+    </ResponseField>
+    
+    <ResponseField name="id" type="string">
+      The ID of the deleted entry.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await client.entry.deleteEntry('product', '123');
+if (result.deleted) {
+  console.log('Product deleted successfully');
+}
+```
+
+### count
+
+```typescript
+// Without groupBy
+async count(
+  entryType: string,
+  options?: { filter?: DBFilter; orFilter?: DBFilter }
+): Promise<{ count: number }>
+
+// With groupBy
+async count<F extends string>(
+  entryType: string,
+  options: {
+    filter?: DBFilter;
+    orFilter?: DBFilter;
+    groupBy: F[];
+  }
+): Promise<Array<Record<F, string> & { count: number }>>
+```
+
+Counts entries, optionally grouped by specified fields.
+
+<ParamField path="entryType" type="string" required>
+  The type of entries to count.
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  <Expandable title="properties">
+    <ParamField path="filter" type="DBFilter" optional>
+      Filter conditions (AND logic).
+    </ParamField>
+    
+    <ParamField path="orFilter" type="DBFilter" optional>
+      Filter conditions (OR logic).
+    </ParamField>
+    
+    <ParamField path="groupBy" type="string[]" optional>
+      Fields to group by. When provided, returns counts per group.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```typescript
+// Simple count
+const total = await client.entry.count('product', {
+  filter: { status: 'active' }
+});
+console.log('Active products:', total.count);
+
+// Count grouped by status
+const grouped = await client.entry.count('product', {
+  groupBy: ['status']
+});
+grouped.forEach(group => {
+  console.log(`${group.status}: ${group.count}`);
+});
+```
+
+### sum
+
+```typescript
+// Without groupBy
+async sum<F extends string>(
+  entryType: string,
+  options: {
+    fields: F[];
+    filter?: DBFilter;
+    orFilter?: DBFilter;
+  }
+): Promise<Record<F, number>>
+
+// With groupBy
+async sum<F extends string, G extends string>(
+  entryType: string,
+  options: {
+    fields: F[];
+    filter?: DBFilter;
+    orFilter?: DBFilter;
+    groupBy: G[];
+  }
+): Promise<Array<Record<F, number> & Record<G, string>>>
+```
+
+Calculates sum of numeric fields, optionally grouped.
+
+<ParamField path="entryType" type="string" required>
+  The type of entries to sum.
+</ParamField>
+
+<ParamField path="options" type="object" required>
+  <Expandable title="properties">
+    <ParamField path="fields" type="string[]" required>
+      Numeric fields to sum.
+    </ParamField>
+    
+    <ParamField path="filter" type="DBFilter" optional>
+      Filter conditions (AND logic).
+    </ParamField>
+    
+    <ParamField path="orFilter" type="DBFilter" optional>
+      Filter conditions (OR logic).
+    </ParamField>
+    
+    <ParamField path="groupBy" type="string[]" optional>
+      Fields to group by. When provided, returns sums per group.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```typescript
+// Total revenue
+const totals = await client.entry.sum('order', {
+  fields: ['total', 'tax'],
+  filter: { status: 'completed' }
+});
+console.log('Total revenue:', totals.total);
+console.log('Total tax:', totals.tax);
+
+// Revenue by status
+const grouped = await client.entry.sum('order', {
+  fields: ['total'],
+  groupBy: ['status']
+});
+grouped.forEach(group => {
+  console.log(`${group.status}: $${group.total}`);
+});
+```
+
+### countConnections
+
+```typescript
+async countConnections(
+  entryType: string,
+  id: string | number
+): Promise<Array<EntryConnectionInfo>>
+```
+
+Counts the number of connected entries for a given entry.
+
+<ParamField path="entryType" type="string" required>
+  The type of the entry.
+</ParamField>
+
+<ParamField path="id" type="string | number" required>
+  The ID of the entry.
+</ParamField>
+
+<ResponseField name="connections" type="EntryConnectionInfo[]">
+  Array of connection information.
+  
+  <Expandable title="properties">
+    <ResponseField name="entryType" type="string">
+      The connected entry type.
+    </ResponseField>
+    
+    <ResponseField name="label" type="string">
+      Human-readable label for the entry type.
+    </ResponseField>
+    
+    <ResponseField name="fieldKey" type="string">
+      The field key that defines the connection.
+    </ResponseField>
+    
+    <ResponseField name="fieldLabel" type="string">
+      Human-readable label for the field.
+    </ResponseField>
+    
+    <ResponseField name="count" type="number">
+      Number of connected entries.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const connections = await client.entry.countConnections('user', '456');
+connections.forEach(conn => {
+  console.log(`${conn.label}: ${conn.count} connected via ${conn.fieldLabel}`);
+});
+```
+
+### runEntryAction
+
+```typescript
+async runEntryAction(
+  entryType: string,
+  id: string,
+  action: string,
+  data?: Record<string, InValue>,
+  enqueue: boolean = false
+): Promise<void | unknown>
+```
+
+Executes a custom action on an entry.
+
+<ParamField path="entryType" type="string" required>
+  The type of entry.
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  The ID of the entry.
+</ParamField>
+
+<ParamField path="action" type="string" required>
+  The name of the action to run.
+</ParamField>
+
+<ParamField path="data" type="Record<string, InValue>" optional>
+  Additional data to pass to the action.
+</ParamField>
+
+<ParamField path="enqueue" type="boolean" optional>
+  Whether to enqueue the action for background processing. Defaults to `false`.
+</ParamField>
+
+<ResponseField name="result" type="void | unknown">
+  Result from the action (if any).
+</ResponseField>
+
+#### Example
+
+```typescript
+// Run an action immediately
+await client.entry.runEntryAction(
+  'order',
+  '789',
+  'sendConfirmationEmail',
+  { language: 'en' }
+);
+
+// Enqueue an action for background processing
+await client.entry.runEntryAction(
+  'product',
+  '123',
+  'generateReports',
+  {},
+  true // enqueue
+);
+```
+
+## Types
+
+### DBFilter
+
+```typescript
+type DBFilter =
+  | Array<InFilter>
+  | Record<string, string | number | null | boolean>;
+```
+
+Filter can be a simple object with field-value pairs, or an array of complex filter conditions.
+
+### InFilter
+
+```typescript
+interface InFilter {
+  field: string;
+  op?: FilterOps;
+  value?: any;
+  or?: Array<FilterAll>;
+  and?: Array<FilterAll>;
+}
+```
+
+Supported operators: `=`, `!=`, `<`, `<=`, `>`, `>=`, `between`, `notBetween`, `isEmpty`, `isNotEmpty`, `inList`, `notInList`, `contains`, `notContains`, `startsWith`, `endsWith`, `arrayContains`, `arrayNotContains`, `arrayContainsAny`.
+
+### IDValue
+
+```typescript
+type IDValue = string | number;
+```

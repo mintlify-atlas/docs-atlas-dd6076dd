@@ -1,0 +1,285 @@
+---
+title: "MimeTypes"
+description: "Utility class for working with MIME types, file extensions, and file categories"
+---
+
+## Overview
+
+The `MimeTypes` utility class provides comprehensive file type information, including MIME types, file extensions, categories, and descriptions. It supports a wide range of file types organized into categories like audio, image, video, document, application, code, text, font, and archive.
+
+## Import
+
+```typescript
+import { MimeTypes } from '@inspatial/cloud';
+```
+
+## Static Properties
+
+### mimetypes
+
+Array of all supported file extension information.
+
+```typescript
+static readonly mimetypes: Array<ExtensionInfo>
+```
+
+### extensions
+
+Map of file extensions to their information.
+
+```typescript
+static readonly extensions: Map<string, ExtensionInfo>
+```
+
+### categories
+
+Map of file categories to their extension information.
+
+```typescript
+static readonly categories: Map<string, Array<ExtensionInfo>>
+```
+
+### categoryNames
+
+Get all available category names.
+
+```typescript
+static get categoryNames(): Array<MimeTypeCategory>
+```
+
+**Returns:** Array of category names: `'audio'`, `'image'`, `'video'`, `'document'`, `'application'`, `'code'`, `'text'`, `'font'`, `'archive'`
+
+## Methods
+
+### getMimeTypeByFileName
+
+Get the MIME type for a file based on its filename.
+
+```typescript
+static getMimeTypeByFileName(fileName: string): string | undefined
+```
+
+**Parameters:**
+- `fileName` - The filename including extension
+
+**Returns:** The MIME type string or `undefined` if not found
+
+**Example:**
+```typescript
+const mimeType = MimeTypes.getMimeTypeByFileName('document.pdf');
+// Returns: 'application/pdf'
+
+const imageMime = MimeTypes.getMimeTypeByFileName('photo.jpg');
+// Returns: 'image/jpeg'
+```
+
+### getMimeTypeByExtension
+
+Get the MIME type for a specific file extension.
+
+```typescript
+static getMimeTypeByExtension(extension: string): string | undefined
+```
+
+**Parameters:**
+- `extension` - The file extension (without the dot)
+
+**Returns:** The MIME type string or `undefined` if not found
+
+**Example:**
+```typescript
+const mimeType = MimeTypes.getMimeTypeByExtension('png');
+// Returns: 'image/png'
+
+const videoMime = MimeTypes.getMimeTypeByExtension('mp4');
+// Returns: 'video/mp4'
+```
+
+### getCategory
+
+Get the category of a file extension.
+
+```typescript
+static getCategory(extension: string): MimeTypeCategory | undefined
+```
+
+**Parameters:**
+- `extension` - The file extension (without the dot)
+
+**Returns:** The category name or `undefined` if not found
+
+**Example:**
+```typescript
+const category = MimeTypes.getCategory('jpg');
+// Returns: 'image'
+
+const docCategory = MimeTypes.getCategory('pdf');
+// Returns: 'document'
+```
+
+### getDescription
+
+Get the description of a file extension.
+
+```typescript
+static getDescription(extension: string): string | undefined
+```
+
+**Parameters:**
+- `extension` - The file extension (without the dot)
+
+**Returns:** A human-readable description or `undefined` if not found
+
+**Example:**
+```typescript
+const description = MimeTypes.getDescription('mp3');
+// Returns description for MP3 audio files
+```
+
+### getExtensionsByCategory
+
+Get all file extensions that belong to a specific category.
+
+```typescript
+static getExtensionsByCategory(
+  category: MimeTypeCategory
+): Array<ExtensionInfo> | undefined
+```
+
+**Parameters:**
+- `category` - The category name (e.g., `'image'`, `'audio'`, `'video'`)
+
+**Returns:** Array of extension information objects or `undefined` if category not found
+
+**Example:**
+```typescript
+const imageExtensions = MimeTypes.getExtensionsByCategory('image');
+// Returns array of all image file extensions with their info
+
+const audioExtensions = MimeTypes.getExtensionsByCategory('audio');
+// Returns array of all audio file extensions with their info
+```
+
+### getExtensionsByMimeType
+
+Find extension information by MIME type.
+
+```typescript
+static getExtensionsByMimeType(
+  mimeType: string
+): ExtensionInfo | undefined
+```
+
+**Parameters:**
+- `mimeType` - The MIME type string (e.g., `'image/png'`, `'video/mp4'`)
+
+**Returns:** Extension information object or `undefined` if not found
+
+**Example:**
+```typescript
+const info = MimeTypes.getExtensionsByMimeType('image/png');
+// Returns: { extension: 'png', mimeType: 'image/png', category: 'image', description: '...' }
+```
+
+## Types
+
+### ExtensionInfo
+
+Information about a file extension.
+
+```typescript
+interface ExtensionInfo {
+  extension: string;
+  description: string;
+  mimeType: string;
+  category: MimeTypeCategory;
+}
+```
+
+### MimeTypeCategory
+
+Supported file categories.
+
+```typescript
+type MimeTypeCategory = 
+  | 'audio'
+  | 'image'
+  | 'video'
+  | 'document'
+  | 'application'
+  | 'code'
+  | 'text'
+  | 'font'
+  | 'archive'
+```
+
+### File Type Categories
+
+The SDK provides type-safe file type definitions:
+
+- **AudioFileType**: `'aac'`, `'mid'`, `'midi'`, `'mp3'`, `'oga'`, `'opus'`, `'wav'`, `'weba'`
+- **ImageFileType**: `'apng'`, `'avif'`, `'bmp'`, `'gif'`, `'ico'`, `'jpeg'`, `'jpg'`, `'png'`, `'svg'`, `'tif'`, `'tiff'`, `'webp'`
+- **VideoFileType**: `'avi'`, `'mp4'`, `'mpeg'`, `'ogv'`, `'ts'`, `'webm'`, `'3gp'`, `'3g2'`
+- **DocumentFileType**: `'azw'`, `'csv'`, `'doc'`, `'docx'`, `'epub'`, `'odp'`, `'ods'`, `'odt'`, `'pdf'`, `'ppt'`, `'pptx'`, `'rtf'`, `'xls'`, `'xlsx'`
+- **ApplicationFileType**: `'bin'`, `'jsonld'`, `'mpkg'`, `'ogx'`, `'xhtml'`
+- **CodeFileType**: `'csh'`, `'js'`, `'json'`, `'mjs'`, `'php'`, `'sh'`, `'xml'`
+- **TextFileType**: `'css'`, `'htm'`, `'html'`, `'ics'`, `'txt'`
+- **FontFileType**: `'eot'`, `'otf'`, `'ttf'`, `'woff'`, `'woff2'`
+- **ArchiveFileType**: `'gz'`, `'jar'`, `'rar'`, `'tar'`, `'zip'`, `'7z'`, `'arc'`
+
+## Usage Examples
+
+### Validating File Uploads
+
+```typescript
+function validateFileUpload(file: File): boolean {
+  const mimeType = MimeTypes.getMimeTypeByFileName(file.name);
+  const category = MimeTypes.getCategory(file.name.split('.').pop() || '');
+  
+  if (!mimeType) {
+    console.error('Unsupported file type');
+    return false;
+  }
+  
+  if (category === 'image') {
+    console.log('Valid image file:', mimeType);
+    return true;
+  }
+  
+  return false;
+}
+```
+
+### Getting All Supported Image Formats
+
+```typescript
+const imageFormats = MimeTypes.getExtensionsByCategory('image');
+if (imageFormats) {
+  imageFormats.forEach(format => {
+    console.log(`${format.extension}: ${format.mimeType}`);
+  });
+}
+```
+
+### Checking File Category
+
+```typescript
+function categorizeFile(filename: string): string {
+  const ext = filename.split('.').pop();
+  if (!ext) return 'Unknown';
+  
+  const category = MimeTypes.getCategory(ext);
+  return category || 'Unknown';
+}
+
+const fileCategory = categorizeFile('report.pdf');
+// Returns: 'document'
+```
+
+### Listing All Categories
+
+```typescript
+const categories = MimeTypes.categoryNames;
+console.log('Supported categories:', categories);
+// Outputs: ['audio', 'image', 'video', 'document', 'application', 'code', 'text', 'font', 'archive']
+```

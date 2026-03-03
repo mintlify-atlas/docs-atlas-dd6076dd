@@ -1,0 +1,435 @@
+---
+title: Field Types
+description: Type definitions for fields and field values in Inspatial Cloud Client SDK
+---
+
+## InField
+
+Generic type representing any field in the system. Fields define the structure and validation rules for entry data.
+
+```typescript
+type InField<T extends InFieldType = InFieldType> = InFieldMap[T];
+```
+
+All field types extend the base field structure with common properties:
+
+<ResponseField name="key" type="string" required>
+  Unique identifier for the field within its entry type
+</ResponseField>
+
+<ResponseField name="label" type="string" required>
+  Display label for the field
+</ResponseField>
+
+<ResponseField name="type" type="InFieldType" required>
+  The specific field type (e.g., `"DataField"`, `"IntField"`, `"ConnectionField"`)
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Optional description of the field's purpose
+</ResponseField>
+
+<ResponseField name="required" type="boolean">
+  Whether the field must have a value
+</ResponseField>
+
+<ResponseField name="readOnly" type="boolean">
+  Whether the field is read-only
+</ResponseField>
+
+<ResponseField name="unique" type="boolean">
+  Whether values must be unique across all entries
+</ResponseField>
+
+<ResponseField name="defaultValue" type="InValue">
+  Default value for new entries
+</ResponseField>
+
+<ResponseField name="hidden" type="boolean">
+  Whether to hide the field in the UI
+</ResponseField>
+
+<ResponseField name="fetchField" type="FetchOptions">
+  Configuration for fetching values from connected entries
+</ResponseField>
+
+<Expandable title="FetchOptions">
+  <ResponseField name="connectionField" type="string" required>
+    The connection field in this entry that contains the ID to fetch from
+  </ResponseField>
+
+  <ResponseField name="fetchField" type="string" required>
+    The field key in the connected entry to retrieve the value from
+  </ResponseField>
+</Expandable>
+
+---
+
+## InFieldType
+
+Union of all available field type names.
+
+```typescript
+type InFieldType =
+  | "DataField"
+  | "TextField"
+  | "IntField"
+  | "BigIntField"
+  | "DecimalField"
+  | "DateField"
+  | "TimeStampField"
+  | "BooleanField"
+  | "PasswordField"
+  | "ChoicesField"
+  | "MultiChoiceField"
+  | "EmailField"
+  | "ImageField"
+  | "JSONField"
+  | "PhoneField"
+  | "ConnectionField"
+  | "RichTextField"
+  | "URLField"
+  | "ListField"
+  | "CurrencyField"
+  | "IDField"
+  | "FileField"
+  | "TimeField"
+  | "CodeField"
+  | "ArrayField";
+```
+
+---
+
+## Common Field Types
+
+### DataField
+
+String field with a maximum of 255 characters.
+
+<ResponseField name="type" type="'DataField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="defaultValue" type="string">
+  Default string value
+</ResponseField>
+
+```typescript
+const nameField: DataField = {
+  key: "name",
+  label: "Product Name",
+  type: "DataField",
+  required: true,
+  unique: true
+};
+```
+
+### TextField
+
+Long string field with a maximum of 65,535 characters.
+
+<ResponseField name="type" type="'TextField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="defaultValue" type="string">
+  Default string value
+</ResponseField>
+
+```typescript
+const descriptionField: TextField = {
+  key: "description",
+  label: "Description",
+  type: "TextField"
+};
+```
+
+### IntField
+
+Whole number field with optional formatting and validation.
+
+<ResponseField name="type" type="'IntField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="min" type="number">
+  Minimum allowed value
+</ResponseField>
+
+<ResponseField name="max" type="number">
+  Maximum allowed value
+</ResponseField>
+
+<ResponseField name="format" type="IntFormat">
+  Display format: `"number"`, `"fileSize"`, `"withCommas"`, or `"percent"`
+</ResponseField>
+
+<ResponseField name="defaultValue" type="number">
+  Default numeric value
+</ResponseField>
+
+```typescript
+const stockField: IntField = {
+  key: "stock",
+  label: "Stock Quantity",
+  type: "IntField",
+  min: 0,
+  format: "withCommas"
+};
+```
+
+### DecimalField
+
+Floating-point number field.
+
+<ResponseField name="type" type="'DecimalField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="min" type="number">
+  Minimum allowed value
+</ResponseField>
+
+<ResponseField name="max" type="number">
+  Maximum allowed value
+</ResponseField>
+
+<ResponseField name="defaultValue" type="number">
+  Default numeric value
+</ResponseField>
+
+### BooleanField
+
+True/false field.
+
+<ResponseField name="type" type="'BooleanField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="defaultValue" type="boolean">
+  Default boolean value
+</ResponseField>
+
+```typescript
+const activeField: BooleanField = {
+  key: "active",
+  label: "Active",
+  type: "BooleanField",
+  defaultValue: true
+};
+```
+
+### ChoicesField
+
+Single selection from predefined choices.
+
+<ResponseField name="type" type="'ChoicesField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="choices" type="Array<Choice>" required>
+  Available choice options
+</ResponseField>
+
+<Expandable title="Choice Properties">
+  <ResponseField name="key" type="string" required>
+    Unique identifier for the choice
+  </ResponseField>
+
+  <ResponseField name="label" type="string" required>
+    Display label for the choice
+  </ResponseField>
+
+  <ResponseField name="color" type="string">
+    Optional color for visual representation
+  </ResponseField>
+
+  <ResponseField name="description" type="string">
+    Optional description of the choice
+  </ResponseField>
+</Expandable>
+
+<ResponseField name="defaultValue" type="string | number">
+  Default selected choice
+</ResponseField>
+
+```typescript
+const statusField: ChoicesField = {
+  key: "status",
+  label: "Status",
+  type: "ChoicesField",
+  choices: [
+    { key: "draft", label: "Draft", color: "gray" },
+    { key: "published", label: "Published", color: "green" },
+    { key: "archived", label: "Archived", color: "red" }
+  ],
+  defaultValue: "draft"
+};
+```
+
+### ConnectionField
+
+Reference to entries in another entry type.
+
+<ResponseField name="type" type="'ConnectionField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="entryType" type="string" required>
+  The entry type this field connects to
+</ResponseField>
+
+<ResponseField name="connectionIdMode" type="IDMode">
+  ID mode of the connected entry type
+</ResponseField>
+
+<ResponseField name="filter" type="InFilter | Array<InFilter>">
+  Filters to limit which entries can be selected
+</ResponseField>
+
+<ResponseField name="filterBy" type="Record<string, string>">
+  Dynamic filtering based on values in the current entry. Key is the field in the connected entry, value is the field key in this entry.
+</ResponseField>
+
+```typescript
+const categoryField: ConnectionField = {
+  key: "category",
+  label: "Category",
+  type: "ConnectionField",
+  entryType: "category",
+  required: true
+};
+```
+
+### CurrencyField
+
+Monetary value field with currency support.
+
+<ResponseField name="type" type="'CurrencyField'" required>
+  Field type identifier
+</ResponseField>
+
+<ResponseField name="currencyCode" type="CurrencyCode">
+  Currency code: `"USD"`, `"EUR"`, `"GBP"`, `"JPY"`, `"AUD"`, `"CAD"`, or `"ILS"`
+</ResponseField>
+
+<ResponseField name="currency" type="Currency">
+  Custom currency configuration
+</ResponseField>
+
+<ResponseField name="defaultValue" type="number">
+  Default monetary value
+</ResponseField>
+
+```typescript
+const priceField: CurrencyField = {
+  key: "price",
+  label: "Price",
+  type: "CurrencyField",
+  currencyCode: "USD",
+  required: true
+};
+```
+
+---
+
+## Currency
+
+Currency configuration for formatting monetary values.
+
+<ResponseField name="code" type="string" required>
+  ISO currency code (e.g., "USD")
+</ResponseField>
+
+<ResponseField name="symbol" type="string" required>
+  Currency symbol (e.g., "$")
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Full currency name (e.g., "US Dollar")
+</ResponseField>
+
+<ResponseField name="symbolPosition" type="'left' | 'right'">
+  Position of currency symbol relative to amount
+</ResponseField>
+
+<ResponseField name="decimalSeparator" type="string">
+  Character used for decimal separation (e.g., ".")
+</ResponseField>
+
+<ResponseField name="thousandsSeparator" type="string">
+  Character used for thousands separation (e.g., ",")
+</ResponseField>
+
+<ResponseField name="decimalPlaces" type="number">
+  Number of decimal places to display
+</ResponseField>
+
+### Example
+
+```typescript
+const customCurrency: Currency = {
+  code: "EUR",
+  symbol: "€",
+  name: "Euro",
+  symbolPosition: "right",
+  decimalSeparator: ",",
+  thousandsSeparator: ".",
+  decimalPlaces: 2
+};
+```
+
+---
+
+## InValue
+
+Union type representing all possible field values.
+
+```typescript
+type InValue<T extends keyof InValueTypeMap = keyof InValueTypeMap> =
+  InValueTypeMap[T];
+```
+
+### Value Type Mapping
+
+| Field Type | Value Type |
+|------------|------------|
+| IDField | `string` |
+| DataField | `string` |
+| TextField | `string` |
+| IntField | `number` |
+| BigIntField | `bigint` |
+| DecimalField | `number` |
+| DateField | `string` |
+| TimeStampField | `number` |
+| TimeField | `string` |
+| BooleanField | `boolean` |
+| PasswordField | `string` |
+| EmailField | `string` |
+| PhoneField | `string` |
+| URLField | `string` |
+| CodeField | `string` |
+| ChoicesField | `string \| number` |
+| MultiChoiceField | `string[]` |
+| ListField | `string[]` |
+| ArrayField | `number[] \| string[]` |
+| ImageField | `string` |
+| FileField | `string` |
+| ConnectionField | `string` |
+| CurrencyField | `number` |
+| JSONField | `Record<string, unknown>` |
+| RichTextField | `Record<string, unknown>` |
+
+### Example
+
+```typescript
+// Type-safe field values
+const values: Record<string, InValue> = {
+  name: "Product Name",        // DataField
+  price: 99.99,                // CurrencyField
+  inStock: true,               // BooleanField
+  quantity: 42,                // IntField
+  tags: ["new", "featured"],  // ListField
+  metadata: { key: "value" }   // JSONField
+};
+```

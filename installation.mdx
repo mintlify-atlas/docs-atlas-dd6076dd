@@ -1,0 +1,99 @@
+---
+title: Installation
+description: Install the Inspatial Cloud Client SDK in your project
+---
+
+# Installation
+
+Install the Inspatial Cloud Client SDK using your preferred package manager.
+
+## Package Managers
+
+<CodeGroup>
+
+```bash npm
+npm install @inspatial/cloud-client
+```
+
+```bash yarn
+yarn add @inspatial/cloud-client
+```
+
+```bash pnpm
+pnpm add @inspatial/cloud-client
+```
+
+```bash bun
+bun add @inspatial/cloud-client
+```
+
+</CodeGroup>
+
+## Deno
+
+For Deno projects, import directly from JSR or npm:
+
+<CodeGroup>
+
+```typescript JSR (Recommended)
+import { InCloudClient, InLiveClient } from "jsr:@inspatial/cloud-client";
+```
+
+```typescript npm:
+import { InCloudClient, InLiveClient } from "npm:@inspatial/cloud-client";
+```
+
+</CodeGroup>
+
+<Note>
+  The SDK requires TypeScript 4.5+ for optimal type inference and supports modern ES modules.
+</Note>
+
+## Available Exports
+
+The SDK provides the following main exports:
+
+```typescript
+import {
+  InCloudClient,  // REST API client
+  InLiveClient,   // WebSocket real-time client
+  MimeTypes,      // MIME type utilities
+  Currencies      // Currency type definitions
+} from '@inspatial/cloud-client';
+
+// Type definitions available from subpath
+import type { Entry, EntryType, InField } from '@inspatial/cloud-client/types';
+```
+
+## TypeScript Configuration
+
+For the best development experience, ensure your `tsconfig.json` includes:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "strict": true
+  }
+}
+```
+
+## Verify Installation
+
+Verify the installation by importing the clients:
+
+```typescript
+import { InCloudClient, InLiveClient } from '@inspatial/cloud-client';
+
+console.log(InCloudClient); // [class InCloudClient]
+console.log(InLiveClient);  // [class InLiveClient]
+```
+
+## Next Steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Follow the quickstart guide to create your first integration
+</Card>

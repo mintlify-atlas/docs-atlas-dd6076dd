@@ -1,0 +1,343 @@
+---
+title: 'AuthGroup'
+description: 'Authentication methods for user login, registration, and session management'
+---
+
+## Overview
+
+The `AuthGroup` class provides methods for user authentication, including login, logout, registration, password reset, and OAuth integration with Google.
+
+Access this group via `client.auth`.
+
+## Methods
+
+### login
+
+```typescript
+async login(email: string, password: string): Promise<SessionData>
+```
+
+Authenticates a user with email and password.
+
+<ParamField path="email" type="string" required>
+  User's email address.
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User's password.
+</ParamField>
+
+<ResponseField name="session" type="SessionData">
+  Session data including user information.
+  
+  <Expandable title="properties">
+    <ResponseField name="userId" type="string">
+      Unique identifier for the user.
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User's email address.
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string">
+      User's first name.
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string">
+      User's last name.
+    </ResponseField>
+    
+    <ResponseField name="systemAdmin" type="boolean">
+      Whether the user has system administrator privileges.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const session = await client.auth.login(
+  'user@example.com',
+  'password123'
+);
+
+if (session.userId) {
+  console.log(`Welcome ${session.firstName}!`);
+}
+```
+
+### logout
+
+```typescript
+async logout(): Promise<void>
+```
+
+Logs out the current user and terminates their session.
+
+#### Example
+
+```typescript
+await client.auth.logout();
+console.log('User logged out');
+```
+
+### authCheck
+
+```typescript
+async authCheck(): Promise<SessionData | false>
+```
+
+Checks if the user has an active session and returns session data if authenticated.
+
+<ResponseField name="session" type="SessionData | false">
+  Returns session data if authenticated, `false` otherwise.
+</ResponseField>
+
+#### Example
+
+```typescript
+const session = await client.auth.authCheck();
+
+if (session) {
+  console.log('User is logged in:', session.email);
+} else {
+  console.log('User is not authenticated');
+}
+```
+
+### registerAccount
+
+```typescript
+async registerAccount(info: RegistrationInfo): Promise<SessionData>
+```
+
+Registers a new user account.
+
+<ParamField path="info" type="RegistrationInfo" required>
+  User registration information.
+  
+  <Expandable title="properties">
+    <ParamField path="email" type="string" required>
+      User's email address.
+    </ParamField>
+    
+    <ParamField path="password" type="string" required>
+      User's password.
+    </ParamField>
+    
+    <ParamField path="firstName" type="string" required>
+      User's first name.
+    </ParamField>
+    
+    <ParamField path="lastName" type="string" required>
+      User's last name.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="session" type="SessionData">
+  Session data for the newly created account.
+</ResponseField>
+
+#### Example
+
+```typescript
+const session = await client.auth.registerAccount({
+  email: 'newuser@example.com',
+  password: 'securePassword123',
+  firstName: 'John',
+  lastName: 'Doe'
+});
+
+console.log('Account created for:', session.email);
+```
+
+### resetPassword
+
+```typescript
+async resetPassword(email: string): Promise<ResetPasswordResponse>
+```
+
+Initiates a password reset process by sending a reset email.
+
+<ParamField path="email" type="string" required>
+  Email address of the account to reset.
+</ParamField>
+
+<ResponseField name="response" type="ResetPasswordResponse">
+  Password reset request result.
+  
+  <Expandable title="properties">
+    <ResponseField name="status" type="number">
+      HTTP status code.
+    </ResponseField>
+    
+    <ResponseField name="type" type="'success' | 'error'">
+      Response type indicator.
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Response title.
+    </ResponseField>
+    
+    <ResponseField name="error" type="boolean">
+      Whether an error occurred.
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Detailed response message.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await client.auth.resetPassword('user@example.com');
+
+if (result.type === 'success') {
+  console.log('Password reset email sent');
+} else {
+  console.error('Reset failed:', result.message);
+}
+```
+
+### setNewPassword
+
+```typescript
+async setNewPassword(args: SetPasswordArgs): Promise<SetPasswordResponse>
+```
+
+Sets a new password using a reset token from the password reset email.
+
+<ParamField path="args" type="SetPasswordArgs" required>
+  Password reset parameters.
+  
+  <Expandable title="properties">
+    <ParamField path="token" type="string" required>
+      Reset token from the password reset email.
+    </ParamField>
+    
+    <ParamField path="password" type="string" required>
+      New password to set.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="response" type="SetPasswordResponse">
+  <Expandable title="properties">
+    <ResponseField name="status" type="'success' | 'error'">
+      Operation result status.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await client.auth.setNewPassword({
+  token: 'reset-token-from-email',
+  password: 'newSecurePassword123'
+});
+
+if (result.status === 'success') {
+  console.log('Password updated successfully');
+}
+```
+
+### signInWithGoogle
+
+```typescript
+async signInWithGoogle(options?: GoogleAuthOptions): Promise<void>
+```
+
+Initiates Google OAuth sign-in flow. Redirects the user to Google authentication.
+
+<ParamField path="options" type="GoogleAuthOptions" optional>
+  Google authentication options.
+  
+  <Expandable title="properties">
+    <ParamField path="redirectTo" type="string" optional>
+      URL to redirect to after successful authentication. Defaults to current location.
+    </ParamField>
+    
+    <ParamField path="csrfToken" type="string" optional>
+      CSRF token for security. If not provided, attempts to retrieve from localStorage.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```typescript
+// Redirect to Google sign-in
+await client.auth.signInWithGoogle({
+  redirectTo: '/dashboard'
+});
+```
+
+### signupWithGoogle
+
+```typescript
+async signupWithGoogle(options?: GoogleAuthOptions): Promise<void>
+```
+
+Initiates Google OAuth sign-up flow. Redirects the user to Google authentication for account creation.
+
+<ParamField path="options" type="GoogleAuthOptions" optional>
+  Google authentication options.
+  
+  <Expandable title="properties">
+    <ParamField path="redirectTo" type="string" optional>
+      URL to redirect to after successful registration. Defaults to current location.
+    </ParamField>
+    
+    <ParamField path="csrfToken" type="string" optional>
+      CSRF token for security. If not provided, attempts to retrieve from localStorage.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```typescript
+// Redirect to Google sign-up
+await client.auth.signupWithGoogle({
+  redirectTo: '/onboarding'
+});
+```
+
+## Types
+
+### SessionData
+
+```typescript
+interface SessionData {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  systemAdmin: boolean;
+  [key: string]: unknown;
+}
+```
+
+### RegistrationInfo
+
+```typescript
+interface RegistrationInfo {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+```
+
+### GoogleAuthOptions
+
+```typescript
+interface GoogleAuthOptions {
+  redirectTo?: string;
+  csrfToken?: string;
+}
+```

@@ -1,0 +1,585 @@
+---
+title: "Live Events"
+description: "Event types and listener patterns for real-time updates"
+---
+
+## Overview
+
+The Inspatial Live Client uses a typed event system for real-time updates. Events are emitted for entries, entry types, and settings, with specific data structures for each event type.
+
+---
+
+## Event Types
+
+### SocketStatus
+
+Represents the WebSocket connection status.
+
+```typescript
+type SocketStatus =
+  | "open"          // Successfully connected
+  | "closed"        // Connection closed
+  | "connecting"    // Attempting to connect
+  | "error"         // Connection error occurred
+  | "reconnected";  // Reconnected after disconnect
+```
+
+**Usage:**
+```typescript
+client.onConnectionStatus((status: SocketStatus) => {
+  if (status === "reconnected") {
+    console.log("Connection restored");
+  }
+});
+```
+
+---
+
+## Entry Events
+
+Events for individual entry instances (specific ID).
+
+### EntryEventMap
+
+Defines all possible events for a single entry.
+
+```typescript
+type EntryEventMap<E extends Entry = Entry> = {
+  update: E;                         // Entry was updated
+  delete: EntryEventDelete<E>;       // Entry was deleted
+  create: E;                         // Entry was created
+  join: EntryEventJoin<E>;           // User joined entry
+  leave: EntryEventLeave<E>;         // User left entry
+};
+```
+
+### EntryEvent
+
+Union of all entry event names.
+
+```typescript
+type EntryEvent<E extends Entry = Entry> = keyof EntryEventMap<E>;
+// "update" | "delete" | "create" | "join" | "leave"
+```
+
+### Event Data Types
+
+<ParamField path="update" type="E extends Entry">
+  Complete entry object with all updated fields.
+</ParamField>
+
+<ParamField path="create" type="E extends Entry">
+  Complete entry object for the newly created entry.
+</ParamField>
+
+<ParamField path="delete" type="EntryEventDelete">
+  Object containing metadata about the deletion.
+</ParamField>
+
+<ParamField path="join" type="EntryEventJoin">
+  Object containing user join information.
+</ParamField>
+
+<ParamField path="leave" type="EntryEventLeave">
+  Object containing user leave information.
+</ParamField>
+
+**Example:**
+```typescript
+interface Space {
+  id: string;
+  name: string;
+  description: string;
+}
+
+client.onEntry<Space>(
+  "Space",
+  "space-123",
+  {
+    name: "myListener",
+    callback: (event: EntryEvent<Space>, data: EntryEventMap<Space>[typeof event]) => {
+      switch (event) {
+        case "update":
+          // data is typed as Space
+          console.log("Updated:", data.name);
+          break;
+        case "create":
+          // data is typed as Space
+          console.log("Created:", data.id);
+          break;
+        case "delete":
+          // data is typed as EntryEventDelete<Space>
+          console.log("Deleted");
+          break;
+        case "join":
+          console.log("User joined");
+          break;
+        case "leave":
+          console.log("User left");
+          break;
+      }
+    }
+  }
+);
+```
+
+---
+
+## Entry Type Events
+
+Events for all entries of a specific type.
+
+### EntryTypeEventMap
+
+Defines all possible events for an entry type.
+
+```typescript
+type EntryTypeEventMap<T extends Record<string, any>> = {
+  create: T;                        // New entry created
+  update: T;                        // Any entry updated
+  delete: { deleted: boolean };     // Entry deleted
+};
+```
+
+### EntryTypeEventDelete
+
+Data structure for entry type deletion events.
+
+```typescript
+interface EntryTypeEventDelete {
+  deleted: boolean;
+  entryType: string;
+  id: IDValue;
+}
+```
+
+<ParamField path="deleted" type="boolean">
+  Always `true` for delete events.
+</ParamField>
+
+<ParamField path="entryType" type="string">
+  The type of entry that was deleted.
+</ParamField>
+
+<ParamField path="id" type="IDValue">
+  The ID of the deleted entry.
+</ParamField>
+
+**Example:**
+```typescript
+interface Asset {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+}
+
+client.onEntryType<Asset>(
+  "Asset",
+  {
+    name: "assetWatcher",
+    callback: (event, data) => {
+      switch (event) {
+        case "create":
+          // data is typed as Asset
+          console.log("New asset:", data.name, data.url);
+          break;
+        case "update":
+          // data is typed as Asset
+          console.log("Asset updated:", data.id);
+          break;
+        case "delete":
+          // data is typed as { deleted: boolean }
+          console.log("Asset deleted");
+          break;
+      }
+    }
+  }
+);
+```
+
+---
+
+## Settings Events
+
+Events for settings objects.
+
+### SettingsEventMap
+
+Defines all possible events for settings.
+
+```typescript
+type SettingsEventMap<S extends Settings = Settings> = {
+  update: S;                        // Settings updated
+  join: Record<string, unknown>;    // User joined settings
+  leave: Record<string, unknown>;   // User left settings
+};
+```
+
+<ParamField path="update" type="S extends Settings">
+  Complete settings object with all updated values.
+</ParamField>
+
+<ParamField path="join" type="Record<string, unknown>">
+  User join metadata.
+</ParamField>
+
+<ParamField path="leave" type="Record<string, unknown>">
+  User leave metadata.
+</ParamField>
+
+**Example:**
+```typescript
+interface AppSettings {
+  theme: "light" | "dark";
+  language: string;
+  notifications: boolean;
+}
+
+client.onSettings<SettingsListener<AppSettings>>(
+  "app-settings",
+  {
+    name: "settingsWatcher",
+    callback: (event, data) => {
+      if (event === "update") {
+        // data is typed as AppSettings
+        console.log("Theme changed to:", data.theme);
+        console.log("Notifications:", data.notifications);
+      }
+    }
+  }
+);
+```
+
+---
+
+## Listener Types
+
+Listener interfaces for registering callbacks.
+
+### EntryListener
+
+Listener for individual entry events.
+
+```typescript
+type EntryListener<
+  T extends Entry = Entry,
+  E extends EntryEvent<T> = EntryEvent<T>
+> = {
+  name: string;
+  callback(event: E, data: EntryEventMap<T>[E]): Promise<void> | void;
+};
+```
+
+<ParamField path="name" type="string" required>
+  Unique identifier for this listener. Used for removing the listener later.
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Function called when an event occurs. Can be async or sync.
+  - `event`: The event type ("update", "delete", "create", "join", "leave")
+  - `data`: Event-specific data, typed based on the event
+</ParamField>
+
+**Example:**
+```typescript
+const listener: EntryListener<Space> = {
+  name: "mySpaceListener",
+  callback: async (event, data) => {
+    if (event === "update") {
+      await updateLocalCache(data);
+    }
+  }
+};
+
+client.onEntry("Space", "space-123", listener);
+```
+
+### EntryTypeListener
+
+Listener for entry type events.
+
+```typescript
+type EntryTypeListener<T extends Record<string, any>> = {
+  name: string;
+  callback(event: keyof EventNameMap, data: T): void | Promise<void>;
+};
+```
+
+<ParamField path="name" type="string" required>
+  Unique identifier for this listener.
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Function called when any entry of this type changes.
+  - `event`: Event type ("create", "update", "delete")
+  - `data`: Entry data or deletion metadata
+</ParamField>
+
+**Example:**
+```typescript
+const typeListener: EntryTypeListener<Space> = {
+  name: "allSpacesListener",
+  callback: (event, data) => {
+    console.log(`Space ${event}:`, data);
+  }
+};
+
+client.onEntryType("Space", typeListener);
+```
+
+### SettingsListener
+
+Listener for settings events.
+
+```typescript
+type SettingsListener<
+  S extends Settings = Settings,
+  E extends keyof SettingsEventMap<S> = keyof SettingsEventMap<S>
+> = {
+  name: string;
+  callback(event: E, data: SettingsEventMap<S>[E]): Promise<void> | void;
+};
+```
+
+<ParamField path="name" type="string" required>
+  Unique identifier for this listener.
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Function called when settings change.
+  - `event`: Event type ("update", "join", "leave")
+  - `data`: Settings data or join/leave metadata
+</ParamField>
+
+**Example:**
+```typescript
+const settingsListener: SettingsListener<AppSettings> = {
+  name: "appSettingsListener",
+  callback: (event, data) => {
+    if (event === "update") {
+      applyTheme(data.theme);
+    }
+  }
+};
+
+client.onSettings("app-settings", settingsListener);
+```
+
+---
+
+## Event Patterns
+
+### Single Entry Updates
+
+Monitor changes to a specific entry instance.
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  status: "online" | "offline";
+}
+
+client.onEntry<User>(
+  "User",
+  "user-456",
+  {
+    name: "userStatusListener",
+    callback: (event, data) => {
+      if (event === "update" && data.status === "online") {
+        showOnlineIndicator();
+      }
+    }
+  }
+);
+```
+
+### Multiple Entry Type Updates
+
+Monitor all entries of a type for list updates.
+
+```typescript
+interface Message {
+  id: string;
+  content: string;
+  authorId: string;
+  timestamp: number;
+}
+
+const messages: Message[] = [];
+
+client.onEntryType<Message>(
+  "Message",
+  {
+    name: "messageListSync",
+    callback: (event, data) => {
+      switch (event) {
+        case "create":
+          messages.push(data);
+          break;
+        case "update":
+          const index = messages.findIndex(m => m.id === data.id);
+          if (index !== -1) messages[index] = data;
+          break;
+        case "delete":
+          const deleteIndex = messages.findIndex(m => m.id === data.id);
+          if (deleteIndex !== -1) messages.splice(deleteIndex, 1);
+          break;
+      }
+      renderMessages();
+    }
+  }
+);
+```
+
+### Settings Synchronization
+
+Keep local settings in sync with server.
+
+```typescript
+interface UserPreferences {
+  theme: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+let preferences: UserPreferences;
+
+client.onSettings<SettingsListener<UserPreferences>>(
+  "user-preferences",
+  {
+    name: "prefSync",
+    callback: (event, data) => {
+      if (event === "update") {
+        preferences = data;
+        applyPreferences(data);
+      }
+    }
+  }
+);
+```
+
+### Connection Recovery
+
+Handle reconnection scenarios.
+
+```typescript
+let isConnected = false;
+
+client.onConnectionStatus((status) => {
+  switch (status) {
+    case "open":
+      isConnected = true;
+      console.log("Connected");
+      break;
+    case "reconnected":
+      isConnected = true;
+      console.log("Reconnected - syncing data");
+      // Re-fetch data to ensure consistency
+      syncAllData();
+      break;
+    case "closed":
+    case "error":
+      isConnected = false;
+      console.log("Disconnected - using cached data");
+      break;
+  }
+});
+```
+
+### Cleanup Pattern
+
+Properly clean up listeners and connections.
+
+```typescript
+class SpaceManager {
+  private client: InLiveClient;
+  private listeners: Map<string, string> = new Map();
+
+  constructor() {
+    this.client = new InLiveClient();
+    this.client.start("auth-token");
+  }
+
+  watchSpace(spaceId: string) {
+    this.client.onEntry(
+      "Space",
+      spaceId,
+      {
+        name: `space-${spaceId}`,
+        callback: (event, data) => {
+          this.handleSpaceEvent(event, data);
+        }
+      }
+    );
+    this.listeners.set(spaceId, `space-${spaceId}`);
+  }
+
+  unwatchSpace(spaceId: string) {
+    const listenerName = this.listeners.get(spaceId);
+    if (listenerName) {
+      this.client.removeEntryListener("Space", spaceId, listenerName);
+      this.listeners.delete(spaceId);
+    }
+  }
+
+  dispose() {
+    // Clean up all listeners
+    this.listeners.forEach((listenerName, spaceId) => {
+      this.client.removeEntryListener("Space", spaceId, listenerName);
+    });
+    this.listeners.clear();
+    this.client.stop();
+  }
+
+  private handleSpaceEvent(event: string, data: any) {
+    console.log("Space event:", event, data);
+  }
+}
+```
+
+---
+
+## Type Safety
+
+The event system is fully typed for compile-time safety.
+
+```typescript
+interface Space {
+  id: string;
+  name: string;
+  isPublic: boolean;
+}
+
+// ✅ Correct: event and data are properly typed
+client.onEntry<Space>(
+  "Space",
+  "space-123",
+  {
+    name: "listener",
+    callback: (event, data) => {
+      if (event === "update") {
+        // TypeScript knows data is of type Space
+        console.log(data.name); // ✅ OK
+        console.log(data.isPublic); // ✅ OK
+      }
+    }
+  }
+);
+
+// ❌ TypeScript will catch errors
+client.onEntry<Space>(
+  "Space",
+  "space-123",
+  {
+    name: "listener",
+    callback: (event, data) => {
+      if (event === "update") {
+        console.log(data.unknownField); // ❌ Error: Property doesn't exist
+      }
+    }
+  }
+);
+```

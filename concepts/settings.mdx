@@ -1,0 +1,514 @@
+---
+title: Settings System
+description: Managing application settings and configuration in Inspatial Cloud
+---
+
+## Overview
+
+The Settings system provides a structured way to manage application configuration and preferences. Unlike entries, settings are singleton objects designed for application-wide or user-specific configuration that doesn't require full CRUD operations.
+
+## What are Settings?
+
+Settings are key-value stores for configuration data. Each settings type represents a distinct configuration group, such as:
+
+- Application preferences (theme, language, etc.)
+- Feature flags
+- System configuration
+- User preferences
+- Integration credentials
+
+## Settings Interface
+
+The base settings interface is flexible:
+
+```typescript
+import type { Settings } from '@inspatial/cloud-client/types';
+
+interface Settings {
+  [key: string]: any;
+}
+
+// Define your own settings types
+interface AppSettings extends Settings {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: boolean;
+  pageSize: number;
+}
+
+interface FeatureFlags extends Settings {
+  enableBetaFeatures: boolean;
+  enableAnalytics: boolean;
+  maintenanceMode: boolean;
+}
+```
+
+## Settings with Timestamps
+
+Track when individual settings fields were last modified:
+
+```typescript
+import type { SettingsWithTimestamp } from '@inspatial/cloud-client/types';
+
+interface SettingsWithTimestamp<S extends Settings> {
+  data: S;                    // Settings values
+  updatedAt: {               // Modification timestamps
+    [K in keyof S]: number;  // Unix timestamp per field
+  };
+}
+```
+
+This is useful for:
+- Conflict resolution
+- Audit trails
+- Determining what changed
+- Implementing "last writer wins" logic
+
+## Settings Operations
+
+### Getting Settings
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+const client = new InCloudClient();
+
+// Get settings without timestamps
+const settings = await client.settings.getSettings<AppSettings>('AppSettings');
+
+console.log(settings.theme);        // 'dark'
+console.log(settings.language);     // 'en'
+console.log(settings.notifications); // true
+```
+
+### Getting Settings with Timestamps
+
+```typescript
+const { data, updatedAt } = await client.settings.getSettingsWithModifiedTime<AppSettings>(
+  'AppSettings'
+);
+
+console.log(data.theme);              // 'dark'
+console.log(updatedAt.theme);         // 1704067200000
+console.log(updatedAt.language);      // 1703980800000
+
+// Check when settings were last modified
+const themeLastModified = new Date(updatedAt.theme);
+console.log(`Theme changed on ${themeLastModified.toLocaleString()}`);
+```
+
+### Updating Settings
+
+```typescript
+// Update specific settings (partial update)
+const updated = await client.settings.updateSettings<AppSettings>(
+  'AppSettings',
+  {
+    theme: 'dark',
+    pageSize: 50
+  }
+);
+
+console.log(updated); // Full settings object with updates applied
+```
+
+<Note>
+  Settings updates are partial by default. Only the fields you provide will be updated; others remain unchanged.
+</Note>
+
+## Settings Actions
+
+Like entries, settings can have custom actions:
+
+```typescript
+interface SettingsAction {
+  key: string;              // Action identifier
+  label?: string;           // Display name
+  description?: string;     // Action description
+  params: InField[];        // Required parameters
+}
+```
+
+### Running Settings Actions
+
+```typescript
+// Run action immediately
+const result = await client.settings.runSettingsAction<InputData, OutputData>(
+  'AppSettings',
+  'reset',
+  {},
+  false  // Don't enqueue
+);
+
+// Enqueue action for background processing
+await client.settings.runSettingsAction(
+  'IntegrationSettings',
+  'syncWithProvider',
+  { provider: 'stripe' },
+  true  // Enqueue
+);
+```
+
+## Settings Types
+
+Settings types define the structure and behavior:
+
+```typescript
+interface SettingsType {
+  config: SettingsTypeConfig;     // Base configuration
+  actions: SettingsAction[];      // Custom actions
+  permission: Record<string, unknown>;  // Access control
+}
+
+interface SettingsTypeConfig {
+  // Base configuration properties
+}
+```
+
+## Real-time Settings Updates
+
+Use `InLiveClient` to receive real-time settings updates:
+
+```typescript
+import { InLiveClient } from '@inspatial/cloud-client';
+import type { SettingsListener } from '@inspatial/cloud-client/types';
+
+const liveClient = new InLiveClient();
+liveClient.start();
+
+interface AppSettings {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: boolean;
+}
+
+const settingsListener: SettingsListener<AppSettings> = {
+  name: 'app-settings-listener',
+  callback: (event, data) => {
+    if (event === 'update') {
+      console.log('Settings updated:', data);
+      
+      // Apply settings changes
+      if (data.theme) {
+        applyTheme(data.theme);
+      }
+      if (data.language) {
+        changeLanguage(data.language);
+      }
+    }
+  }
+};
+
+liveClient.onSettings<typeof settingsListener>('AppSettings', settingsListener);
+```
+
+## Settings Events
+
+### Event Types
+
+```typescript
+type SettingsEventMap<S extends Settings> = {
+  update: S;                          // Settings updated
+  join: Record<string, unknown>;      // Joined settings room
+  leave: Record<string, unknown>;     // Left settings room
+};
+```
+
+### Settings Listener
+
+```typescript
+type SettingsListener<
+  S extends Settings,
+  E extends keyof SettingsEventMap<S> = keyof SettingsEventMap<S>
+> = {
+  name: string;
+  callback(event: E, data: SettingsEventMap<S>[E]): Promise<void> | void;
+};
+```
+
+## Use Cases
+
+### Application Preferences
+
+```typescript
+interface UserPreferences extends Settings {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  timezone: string;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  displayDensity: 'comfortable' | 'compact';
+}
+
+class PreferencesManager {
+  constructor(private client: InCloudClient) {}
+
+  async loadPreferences(): Promise<UserPreferences> {
+    return await this.client.settings.getSettings<UserPreferences>(
+      'UserPreferences'
+    );
+  }
+
+  async updateTheme(theme: 'light' | 'dark' | 'auto') {
+    return await this.client.settings.updateSettings<UserPreferences>(
+      'UserPreferences',
+      { theme }
+    );
+  }
+
+  async updateNotificationSettings(email: boolean, push: boolean) {
+    return await this.client.settings.updateSettings<UserPreferences>(
+      'UserPreferences',
+      {
+        emailNotifications: email,
+        pushNotifications: push
+      }
+    );
+  }
+}
+```
+
+### Feature Flags
+
+```typescript
+interface FeatureFlags extends Settings {
+  enableBetaFeatures: boolean;
+  enableNewDashboard: boolean;
+  enableAdvancedSearch: boolean;
+  maintenanceMode: boolean;
+  maxUploadSize: number;
+}
+
+class FeatureManager {
+  private flags: FeatureFlags | null = null;
+
+  constructor(
+    private client: InCloudClient,
+    private liveClient: InLiveClient
+  ) {
+    this.setupLiveUpdates();
+  }
+
+  async initialize() {
+    this.flags = await this.client.settings.getSettings<FeatureFlags>(
+      'FeatureFlags'
+    );
+  }
+
+  isEnabled(feature: keyof FeatureFlags): boolean {
+    return this.flags?.[feature] === true;
+  }
+
+  private setupLiveUpdates() {
+    const listener: SettingsListener<FeatureFlags> = {
+      name: 'feature-flags-listener',
+      callback: (event, data) => {
+        if (event === 'update') {
+          this.flags = { ...this.flags, ...data };
+          console.log('Feature flags updated:', data);
+        }
+      }
+    };
+
+    this.liveClient.onSettings<typeof listener>('FeatureFlags', listener);
+  }
+}
+```
+
+### System Configuration
+
+```typescript
+interface SystemConfig extends Settings {
+  apiVersion: string;
+  maintenanceWindow: {
+    start: number;
+    end: number;
+  };
+  rateLimits: {
+    api: number;
+    uploads: number;
+  };
+  allowedOrigins: string[];
+}
+
+class SystemManager {
+  constructor(private client: InCloudClient) {}
+
+  async getConfig(): Promise<SystemConfig> {
+    return await this.client.settings.getSettings<SystemConfig>('SystemConfig');
+  }
+
+  async updateRateLimits(api: number, uploads: number) {
+    return await this.client.settings.updateSettings<SystemConfig>(
+      'SystemConfig',
+      {
+        rateLimits: { api, uploads }
+      }
+    );
+  }
+
+  async scheduleMaintenanceWindow(start: number, end: number) {
+    return await this.client.settings.updateSettings<SystemConfig>(
+      'SystemConfig',
+      {
+        maintenanceWindow: { start, end }
+      }
+    );
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Type Definitions" icon="code">
+    Define TypeScript interfaces for your settings to ensure type safety across your application.
+  </Card>
+  <Card title="Partial Updates" icon="puzzle">
+    Only update the settings that changed to reduce payload size and prevent accidental overwrites.
+  </Card>
+  <Card title="Live Sync" icon="arrows-rotate">
+    Use InLiveClient to keep settings in sync across multiple tabs or devices.
+  </Card>
+  <Card title="Timestamps" icon="clock">
+    Use `getSettingsWithModifiedTime` when you need to track changes or resolve conflicts.
+  </Card>
+</CardGroup>
+
+## Settings vs Entries
+
+Choose Settings when:
+- You need a singleton configuration object
+- The data represents application or user preferences
+- You don't need full CRUD operations
+- The data structure is relatively flat
+
+Choose Entries when:
+- You need multiple records of the same type
+- You need full CRUD operations
+- You need relationships between records
+- You need advanced querying and filtering
+
+## Complete Example
+
+```typescript
+import { InCloudClient, InLiveClient } from '@inspatial/cloud-client';
+import type { SettingsListener } from '@inspatial/cloud-client/types';
+
+interface AppSettings {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: boolean;
+  pageSize: number;
+  sidebarCollapsed: boolean;
+}
+
+class SettingsService {
+  private settings: AppSettings | null = null;
+  private client: InCloudClient;
+  private liveClient: InLiveClient;
+
+  constructor() {
+    this.client = new InCloudClient();
+    this.liveClient = new InLiveClient();
+    this.setupLiveUpdates();
+  }
+
+  async initialize() {
+    // Load initial settings
+    this.settings = await this.client.settings.getSettings<AppSettings>(
+      'AppSettings'
+    );
+    
+    // Apply settings
+    this.applySettings(this.settings);
+    
+    // Start live connection
+    this.liveClient.start();
+  }
+
+  async updateTheme(theme: 'light' | 'dark' | 'auto') {
+    const updated = await this.client.settings.updateSettings<AppSettings>(
+      'AppSettings',
+      { theme }
+    );
+    this.settings = updated;
+    this.applySettings(updated);
+  }
+
+  async updateLanguage(language: string) {
+    const updated = await this.client.settings.updateSettings<AppSettings>(
+      'AppSettings',
+      { language }
+    );
+    this.settings = updated;
+    this.applySettings(updated);
+  }
+
+  async toggleSidebar() {
+    const collapsed = !this.settings?.sidebarCollapsed;
+    await this.client.settings.updateSettings<AppSettings>(
+      'AppSettings',
+      { sidebarCollapsed: collapsed }
+    );
+  }
+
+  private setupLiveUpdates() {
+    const listener: SettingsListener<AppSettings> = {
+      name: 'settings-sync',
+      callback: (event, data) => {
+        if (event === 'update') {
+          console.log('Settings updated remotely:', data);
+          this.settings = { ...this.settings, ...data } as AppSettings;
+          this.applySettings(data);
+        }
+      }
+    };
+
+    this.liveClient.onSettings<typeof listener>('AppSettings', listener);
+  }
+
+  private applySettings(settings: Partial<AppSettings>) {
+    if (settings.theme) {
+      document.documentElement.setAttribute('data-theme', settings.theme);
+    }
+    if (settings.language) {
+      // Change app language
+    }
+    if (settings.sidebarCollapsed !== undefined) {
+      // Update sidebar state
+    }
+  }
+
+  getSettings(): AppSettings | null {
+    return this.settings;
+  }
+}
+
+// Usage
+const settingsService = new SettingsService();
+await settingsService.initialize();
+
+// User changes theme
+await settingsService.updateTheme('dark');
+
+// User changes language
+await settingsService.updateLanguage('es');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cloud Client" icon="cloud" href="/concepts/cloud-client">
+    Learn about the main API client
+  </Card>
+  <Card title="Live Updates" icon="wifi" href="/concepts/live-client">
+    Subscribe to real-time settings changes
+  </Card>
+  <Card title="Entries" icon="database" href="/concepts/entries">
+    Understand when to use entries vs settings
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/settings-group">
+    View complete settings API
+  </Card>
+</CardGroup>

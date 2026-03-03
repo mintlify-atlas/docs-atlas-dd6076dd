@@ -1,0 +1,260 @@
+---
+title: InCloudClient
+description: Core client for interacting with Inspatial Cloud API
+---
+
+## Overview
+
+The `InCloudClient` is the primary interface for interacting with the Inspatial Cloud API. It provides a comprehensive set of methods for managing entries, settings, authentication, and file uploads through organized API groups.
+
+## Architecture
+
+The client is organized into four main API groups:
+
+- **entry**: CRUD operations for entries
+- **settings**: Manage application settings
+- **auth**: Authentication and authorization
+- **orm**: Object-relational mapping utilities
+
+## Creating a Client
+
+```typescript
+import { InCloudClient } from '@inspatial/cloud-client';
+
+// Create client with default host (/api)
+const client = new InCloudClient();
+
+// Or specify a custom host
+const client = new InCloudClient('https://api.example.com');
+
+// With options for custom notifications and redirects
+const client = new InCloudClient('https://api.example.com', {
+  onNotify: (info) => {
+    console.log(`${info.type}: ${info.title} - ${info.message}`);
+  },
+  onRedirect: (url, response) => {
+    window.location.href = url;
+  }
+});
+```
+
+## Configuration
+
+### Host and Endpoints
+
+The client maintains a configurable host URL and automatically generates file endpoints:
+
+```typescript
+// Set host dynamically
+client.host = 'https://new-api.example.com';
+
+// Access generated file endpoint
+const fileUrl = `${client.filesEndpoint}${fileId}`;
+```
+
+### Custom Headers
+
+Modify request headers as needed:
+
+```typescript
+client.headers.append('Authorization', `Bearer ${token}`);
+client.headers.append('X-Custom-Header', 'value');
+```
+
+## API Groups
+
+### Entry Group
+
+Manage entries with full CRUD operations:
+
+```typescript
+// Get a single entry
+const entry = await client.entry.getEntry('Post', '123');
+
+// Get entry list with options
+const { entries, totalCount } = await client.entry.getEntryList('Post', {
+  limit: 10,
+  offset: 0,
+  filter: { status: 'published' }
+});
+
+// Create a new entry
+const newEntry = await client.entry.createEntry('Post', {
+  title: 'New Post',
+  content: 'Post content'
+});
+
+// Update an entry
+const updated = await client.entry.updateEntry('Post', '123', {
+  title: 'Updated Title'
+});
+
+// Delete an entry
+await client.entry.deleteEntry('Post', '123');
+
+// Run custom entry actions
+await client.entry.runEntryAction('Post', '123', 'publish', {}, false);
+
+// Aggregate operations
+const countResult = await client.entry.count('Post', {
+  filter: { status: 'published' }
+});
+
+const sumResult = await client.entry.sum('Order', {
+  fields: ['total', 'tax'],
+  filter: { status: 'completed' }
+});
+```
+
+### Settings Group
+
+Manage application settings:
+
+```typescript
+// Get settings
+const settings = await client.settings.getSettings('AppSettings');
+
+// Get settings with modification timestamps
+const { data, updatedAt } = await client.settings.getSettingsWithModifiedTime('AppSettings');
+
+// Update settings
+await client.settings.updateSettings('AppSettings', {
+  theme: 'dark',
+  language: 'en'
+});
+
+// Run settings actions
+await client.settings.runSettingsAction('AppSettings', 'reset', {}, false);
+```
+
+### Auth Group
+
+Handle authentication operations through the auth group (accessed via `client.auth`).
+
+### ORM Group
+
+Utilize ORM capabilities through the orm group (accessed via `client.orm`).
+
+## File Uploads
+
+Upload files with progress tracking and optimization:
+
+```typescript
+client.uploadFile({
+  fileName: 'profile.jpg',
+  file: fileObject,
+  global: false,
+  publicFile: true,
+  optimize: {
+    width: 800,
+    height: 600
+  },
+  progressCallback: (progress) => {
+    const percent = (progress.loaded / progress.total) * 100;
+    console.log(`Upload progress: ${percent}%`);
+  },
+  completeCallback: (entry) => {
+    console.log('Upload complete:', entry.id);
+  },
+  errorCallback: (error) => {
+    console.error('Upload failed:', error);
+  }
+});
+```
+
+## Utility Methods
+
+### Ping Server
+
+Check if the server is reachable:
+
+```typescript
+const isOnline = await client.ping();
+if (isOnline) {
+  console.log('Server is reachable');
+}
+```
+
+### Get API Information
+
+Retrieve API documentation and available endpoints:
+
+```typescript
+const apiDocs = await client.getApiInfo();
+if (apiDocs) {
+  console.log('Available API groups:', apiDocs.groups);
+}
+```
+
+## Error Handling
+
+The client automatically handles errors and provides notifications through the `onNotify` callback:
+
+```typescript
+const client = new InCloudClient('https://api.example.com', {
+  onNotify: (info) => {
+    switch (info.type) {
+      case 'error':
+        // Handle error notification
+        showErrorToast(info.title, info.message);
+        break;
+      case 'success':
+        showSuccessToast(info.title, info.message);
+        break;
+      case 'warning':
+        showWarningToast(info.title, info.message);
+        break;
+      case 'info':
+        showInfoToast(info.title, info.message);
+        break;
+    }
+  }
+});
+```
+
+## Making Custom API Calls
+
+For custom API endpoints not covered by the groups:
+
+```typescript
+const result = await client.call(
+  'customGroup',
+  'customAction',
+  { param1: 'value1' },
+  'POST'
+);
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Single Instance" icon="unity">
+    Create one client instance per application and reuse it throughout your app.
+  </Card>
+  <Card title="Error Handling" icon="shield-check">
+    Always implement the `onNotify` callback to handle errors gracefully.
+  </Card>
+  <Card title="Type Safety" icon="code">
+    Use TypeScript generics to type your entries and responses for better type safety.
+  </Card>
+  <Card title="Credentials" icon="key">
+    The client automatically includes credentials in requests for proper session handling.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Live Client" icon="wifi" href="/concepts/live-client">
+    Learn about real-time updates with InLiveClient
+  </Card>
+  <Card title="Entries" icon="database" href="/concepts/entries">
+    Understand the Entry system and types
+  </Card>
+  <Card title="Settings" icon="gear" href="/concepts/settings">
+    Explore the Settings system
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/cloud-client">
+    View complete API documentation
+  </Card>
+</CardGroup>
