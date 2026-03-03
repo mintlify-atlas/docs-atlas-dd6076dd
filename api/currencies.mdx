@@ -10,7 +10,7 @@ The `Currencies` object provides predefined currency configurations for common i
 ## Import
 
 ```typescript
-import { Currencies } from '@inspatial/cloud';
+import { Currencies } from '@inspatial/cloud-client';
 ```
 
 ## Supported Currencies
@@ -162,7 +162,7 @@ type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'ILS'
 The `Currencies` object is commonly used with the `CurrencyField` type when defining entry types:
 
 ```typescript
-import { Currencies, type CurrencyField } from '@inspatial/cloud';
+import { Currencies, type CurrencyField } from '@inspatial/cloud-client';
 
 const priceField: CurrencyField = {
   type: 'CurrencyField',
@@ -218,11 +218,12 @@ const jpyPrice = formatCurrency(1234, 'JPY');
 ### Creating Multi-Currency Product
 
 ```typescript
-import { Inspatial, Currencies } from '@inspatial/cloud';
+import { InCloudClient, Currencies } from '@inspatial/cloud-client';
 
-const client = new Inspatial({ accountId: 'your-account-id' });
+const client = new InCloudClient('/api');
 
-const productEntryType = await client.db.createEntryType({
+// Example: Define entry type with currency fields
+const productEntryType = {
   key: 'product',
   name: 'Product',
   fields: [
@@ -251,7 +252,7 @@ const productEntryType = await client.db.createEntryType({
       currency: Currencies.GBP
     }
   ]
-});
+};
 ```
 
 ### Getting Currency Display Name

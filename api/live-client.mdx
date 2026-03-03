@@ -23,7 +23,7 @@ const liveClient = new InLiveClient(host?: string)
 
 **Example:**
 ```typescript
-import { InLiveClient } from "@inspatial/cloud";
+import { InLiveClient } from "@inspatial/cloud-client";
 
 // Use default host (current location)
 const client = new InLiveClient();
@@ -462,7 +462,7 @@ client.leaveRoom("custom-room");
 ## Complete Example
 
 ```typescript
-import { InLiveClient } from "@inspatial/cloud";
+import { InLiveClient } from "@inspatial/cloud-client";
 
 interface Space {
   id: string;
